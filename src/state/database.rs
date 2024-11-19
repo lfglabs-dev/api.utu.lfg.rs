@@ -1,9 +1,9 @@
-use mongodb::{bson::{doc, DateTime}, ClientSession, Database};
-
-use crate::{
-    models::deposit::{DepositAddressDocument, DepositDocument},
-    utils::Address,
+use mongodb::{
+    bson::{doc, DateTime},
+    ClientSession, Database,
 };
+
+use crate::{models::deposit::DepositAddressDocument, utils::Address};
 
 use super::DatabaseError;
 
@@ -14,15 +14,16 @@ pub trait DatabaseExt {
         starknet_addr: Address,
         bitcoin_addr: String,
     ) -> Result<(), DatabaseError>;
-    async fn set_deposit(
+    async fn get_deposits_bitcoin(
         &self,
         session: &mut ClientSession,
-        tx_hash: String,
-        bitcoin_sending_address: String,
-        starknet_receiving_address: Address,
-        claimed: bool,
-        verification_status: String,
-    ) -> Result<(), DatabaseError>;
+        bitcoin_deposit_address: String,
+    ) -> Result<Vec<DepositAddressDocument>, DatabaseError>;
+    async fn get_deposits_starknet(
+        &self,
+        session: &mut ClientSession,
+        starknet_deposit_addr: Address,
+    ) -> Result<Vec<DepositAddressDocument>, DatabaseError>;
     async fn get_starknet_addr_from_bitcoin_deposit_addr(
         &self,
         session: &mut ClientSession,
@@ -55,35 +56,46 @@ impl DatabaseExt for Database {
         Ok(())
     }
 
-    async fn set_deposit(
+    async fn get_deposits_bitcoin(
         &self,
         session: &mut ClientSession,
-        tx_hash: String,
-        bitcoin_sending_address: String,
-        starknet_receiving_address: Address,
-        claimed: bool,
-        verification_status: String,
-    ) -> Result<(), DatabaseError> {
-        self.collection::<DepositDocument>("deposits")
-            .update_one(
-                doc! {
-                    "tx_hash": tx_hash,
-                    "starknet_receiving_address": starknet_receiving_address.to_string(),
-                    "bitcoin_sending_address": bitcoin_sending_address
-                },
-                doc! {
-                    "$set":
-                    {
-                        "claimed": claimed,
-                        "verification_status": verification_status,
-                    }
-                },
-            )
-            .upsert(true)
+        bitcoin_sender_address: String,
+    ) -> Result<Vec<DepositAddressDocument>, DatabaseError> {
+        let mut cursor = self
+            .collection::<DepositAddressDocument>("deposits")
+            .find(doc! {"bitcoin_sender_address": bitcoin_sender_address })
             .session(&mut *session)
             .await
             .map_err(DatabaseError::QueryFailed)?;
-        Ok(())
+
+        let mut res: Vec<DepositAddressDocument> = Vec::new();
+
+        while let Ok(doc) = cursor.next(session).await.expect("Failed to read cursor") {
+            res.push(doc);
+        }
+
+        Ok(res)
+    }
+
+    async fn get_deposits_starknet(
+        &self,
+        session: &mut ClientSession,
+        starknet_deposit_addr: Address,
+    ) -> Result<Vec<DepositAddressDocument>, DatabaseError> {
+        let mut cursor = self
+            .collection::<DepositAddressDocument>("deposits")
+            .find(doc! {"starknet_address": starknet_deposit_addr.to_string() })
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        let mut res: Vec<DepositAddressDocument> = Vec::new();
+
+        while let Ok(doc) = cursor.next(session).await.expect("Failed to read cursor") {
+            res.push(doc);
+        }
+
+        Ok(res)
     }
 
     async fn get_starknet_addr_from_bitcoin_deposit_addr(

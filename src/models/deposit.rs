@@ -9,18 +9,20 @@ pub struct DepositAddressDocument {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DepositDocument {
-    pub tx_hash: String,
     pub starknet_address: String,
-    pub claimed_tx : Option<String>,
-    pub runes_data : Vec<RuneData>,
+    pub bitcoin_deposit_address: String,
+    pub tx_id: String,
+    pub rune: Rune,
+    pub amount: String,
+    pub claimed: bool,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuneData {
-    pub rune_id: String,
-    pub amount: f64,
+pub struct Rune {
+    pub id: String,
+    pub name: String,
+    pub spaced_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
