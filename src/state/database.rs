@@ -1,4 +1,4 @@
-use mongodb::{bson::doc, ClientSession, Database};
+use mongodb::{bson::{doc, DateTime}, ClientSession, Database};
 
 use crate::{
     models::deposit::{DepositAddressDocument, DepositDocument},
@@ -44,6 +44,7 @@ impl DatabaseExt for Database {
                     "$set":
                     {
                         "bitcoin_deposit_address": bitcoin_addr,
+                        "created_at": DateTime::now(),
                     }
                 },
             )
