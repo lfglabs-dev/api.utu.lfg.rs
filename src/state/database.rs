@@ -36,6 +36,11 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         rune_id: String,
     ) -> Result<SupportedRuneDocument, DatabaseError>;
+    async fn is_blacklisted(
+        &self,
+        session: &mut ClientSession,
+        tx_id: String,
+    ) -> Result<(), DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -131,6 +136,24 @@ impl DatabaseExt for Database {
 
         match result {
             Some(doc) => Ok(doc),
+            None => Err(DatabaseError::NotFound),
+        }
+    }
+
+    async fn is_blacklisted(
+        &self,
+        session: &mut ClientSession,
+        tx_id: String,
+    ) -> Result<(), DatabaseError> {
+        let result = self
+            .collection::<SupportedRuneDocument>("blacklisted_deposits")
+            .find_one(doc! {"tx_id": tx_id})
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        match result {
+            Some(_) => Ok(()),
             None => Err(DatabaseError::NotFound),
         }
     }

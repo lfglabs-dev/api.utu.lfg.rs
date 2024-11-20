@@ -4,7 +4,7 @@ use crate::models::runes::Operation;
 use crate::server::responses::{ApiResponse, Status};
 use crate::state::AppState;
 use crate::try_start_session;
-use crate::utils::deposit_activity::get_activity_bitcoin_addr;
+use crate::utils::deposit_activity::{filter_deposits, get_activity_bitcoin_addr};
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
@@ -53,10 +53,21 @@ pub async fn get_deposit_bitcoin(
             }
         };
 
-    // todo: we need to filter by status: pending, confirmed, claimed
+    let filtered_deposits = match filter_deposits(&state, &mut session, deposits).await {
+        Ok(deposits) => deposits,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::new(
+                    Status::InternalServerError,
+                    format!("Error while filtering deposits error: {:?}", err),
+                )),
+            )
+        }
+    };
 
     (
         StatusCode::ACCEPTED,
-        Json(ApiResponse::new(Status::Success, deposits)),
+        Json(ApiResponse::new(Status::Success, filtered_deposits)),
     )
 }

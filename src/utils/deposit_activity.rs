@@ -1,12 +1,14 @@
-use std::{env, sync::Arc};
+use std::{collections::HashMap, env, str::FromStr, sync::Arc};
 
 use anyhow::Result;
+use bitcoin::BlockHash;
+use bitcoincore_rpc::RpcApi;
 use mongodb::ClientSession;
 use reqwest::Client;
 
 use crate::{
     models::{
-        deposit::DepositActivityDetails,
+        deposit::{DepositActivityDetails, DepositStatus},
         runes::{Operation, RuneActivityForAddress},
     },
     state::{database::DatabaseExt, AppState},
@@ -15,6 +17,7 @@ use crate::{
 lazy_static::lazy_static! {
     static ref HIRO_API_URL: String = env::var("HIRO_API_URL").expect("HIRO_API_URL must be set");
     static ref HIRO_API_KEY: String = env::var("HIRO_API_KEY").expect("HIRO_API_KEY must be set");
+    static ref MIN_CONFIRMATIONS: i32 = env::var("MIN_CONFIRMATIONS").expect("MIN_CONFIRMATIONS must be set").parse::<i32>().expect("unable to parse MIN_CONFIRMATIONS as i32");
 }
 
 pub async fn get_activity_bitcoin_addr(
@@ -94,4 +97,42 @@ pub async fn get_activity_bitcoin_addr(
     }
 
     Ok(response)
+}
+
+pub async fn filter_deposits(
+    state: &Arc<AppState>,
+    session: &mut ClientSession,
+    deposits: Vec<DepositActivityDetails>,
+) -> Result<HashMap<DepositStatus, Vec<DepositActivityDetails>>> {
+    let mut filtered_deposits: HashMap<DepositStatus, Vec<DepositActivityDetails>> = HashMap::new();
+    for deposit in deposits {
+        let block_hash = BlockHash::from_str(&deposit.tx.location.block_hash)?;
+        let res = state.bitcoin_provider.get_block_header_info(&block_hash)?;
+        if res.confirmations >= *MIN_CONFIRMATIONS {
+            // update deposit status to confirmed or claimed
+            if state
+                .db
+                .is_blacklisted(session, deposit.tx.location.tx_id.clone())
+                .await
+                .is_ok()
+            {
+                filtered_deposits
+                    .entry(DepositStatus::Claimed)
+                    .or_default()
+                    .push(deposit);
+            } else {
+                filtered_deposits
+                    .entry(DepositStatus::Confirmed)
+                    .or_default()
+                    .push(deposit);
+            }
+        } else {
+            // update deposit status to pending
+            filtered_deposits
+                .entry(DepositStatus::Pending)
+                .or_default()
+                .push(deposit);
+        }
+    }
+    Ok(filtered_deposits)
 }

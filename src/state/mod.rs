@@ -1,3 +1,4 @@
+use bitcoincore_rpc::Client;
 use mongodb::Database;
 use thiserror::Error;
 
@@ -30,6 +31,7 @@ impl From<anyhow::Error> for DatabaseError {
 pub struct AppState {
     pub logger: Logger,
     pub db: Database,
+    pub bitcoin_provider: Client,
 }
 
 // required for axum_auto_routes

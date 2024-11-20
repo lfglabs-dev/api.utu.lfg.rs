@@ -107,6 +107,7 @@ pub async fn claim_deposit_data(
         rune_id,
         amount,
         target_addr: body.starknet_addr,
+        tx_id: body.tx_data.clone().location.tx_id,
     };
 
     (

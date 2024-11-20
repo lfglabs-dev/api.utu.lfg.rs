@@ -39,3 +39,11 @@ pub struct DepositActivityDetails {
     pub rune: SupportedRuneDocument,
     pub tx: RuneActivity,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum DepositStatus {
+    Pending,
+    Confirmed,
+    Claimed,
+}
