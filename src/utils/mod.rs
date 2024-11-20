@@ -5,6 +5,7 @@ use std::fmt::{self};
 use crate::pub_struct;
 
 pub mod deposit;
+pub mod deposit_activity;
 pub mod macros;
 pub mod starknet;
 pub mod starknet_tx;

@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use crate::models::runes::Operation;
 use crate::server::responses::{ApiResponse, Status};
 use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
+use crate::utils::deposit_activity::get_activity_bitcoin_addr;
 use crate::utils::Address;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
@@ -34,21 +36,49 @@ pub async fn get_deposit_starknet(
         );
     };
 
-    match state
+    let bitcoin_deposit_addr = match state
         .db
-        .get_deposits_starknet(&mut session, query.starknet_addr)
+        .get_bitcoin_deposit_addr(&mut session, query.starknet_addr)
         .await
     {
-        Ok(deposits) => (
-            StatusCode::ACCEPTED,
-            Json(ApiResponse::new(Status::Success, deposits)),
-        ),
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::new(
-                Status::InternalServerError,
-                format!("Database error: {:?}", err),
-            )),
-        ),
-    }
+        Ok(addr) => addr,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::new(
+                    Status::InternalServerError,
+                    format!("Database error: {:?}", err),
+                )),
+            )
+        }
+    };
+
+    // We retrieve deposits from hiro api, we're looking for deposits that have a type Operation::Receive
+    // and matches the runes we support
+    let deposits = match get_activity_bitcoin_addr(
+        &state,
+        &mut session,
+        bitcoin_deposit_addr,
+        Operation::Receive,
+    )
+    .await
+    {
+        Ok(deposits) => deposits,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::new(
+                    Status::InternalServerError,
+                    format!("Hiro API error: {:?}", err),
+                )),
+            )
+        }
+    };
+
+    // todo: we need to filter by status: pending, confirmed, claimed
+
+    (
+        StatusCode::ACCEPTED,
+        Json(ApiResponse::new(Status::Success, deposits)),
+    )
 }
