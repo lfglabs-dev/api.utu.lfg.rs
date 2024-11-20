@@ -1,6 +1,8 @@
 use mongodb::bson::DateTime;
 use serde::{Deserialize, Serialize};
 
+use super::runes::{RuneActivity, SupportedRuneDocument};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DepositAddressDocument {
     pub starknet_address: String,
@@ -18,6 +20,7 @@ pub struct DepositDocument {
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rune {
     pub id: String,
@@ -29,4 +32,10 @@ pub struct Rune {
 pub struct BitcoinAddresses {
     pub addresses: Vec<String>,
     pub amount: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DepositActivityDetails {
+    pub rune: SupportedRuneDocument,
+    pub tx: RuneActivity,
 }

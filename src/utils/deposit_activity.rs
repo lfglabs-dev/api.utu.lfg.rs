@@ -5,7 +5,10 @@ use mongodb::ClientSession;
 use reqwest::Client;
 
 use crate::{
-    models::runes::{Operation, RuneActivity, RuneActivityForAddress},
+    models::{
+        deposit::DepositActivityDetails,
+        runes::{Operation, RuneActivityForAddress},
+    },
     state::{database::DatabaseExt, AppState},
 };
 
@@ -19,8 +22,8 @@ pub async fn get_activity_bitcoin_addr(
     session: &mut ClientSession,
     bitcoin_addr: String,
     operation: Operation,
-) -> Result<Vec<RuneActivity>> {
-    let mut response: Vec<RuneActivity> = Vec::new();
+) -> Result<Vec<DepositActivityDetails>> {
+    let mut response: Vec<DepositActivityDetails> = Vec::new();
 
     // retrieve available runes
     let runes = state.db.get_supported_runes(session).await?;
@@ -41,7 +44,11 @@ pub async fn get_activity_bitcoin_addr(
                 .await?;
 
             if !res.status().is_success() {
-                state.logger.warning(format!("Failed to fetch block activity for rune {} and bitcoin_addr {}", rune.clone().name, bitcoin_addr));
+                state.logger.warning(format!(
+                    "Failed to fetch block activity for rune {} and bitcoin_addr {}",
+                    rune.clone().name,
+                    bitcoin_addr
+                ));
                 break;
             }
 
@@ -50,12 +57,11 @@ pub async fn get_activity_bitcoin_addr(
 
             for tx in account_activity.results {
                 if tx.operation == operation {
-                    //todo: we need to include the rune details in the response
-
-                    if operation == Operation::Receive
-                        && tx.receiver_address.is_some()
-                    {
-                        response.push(tx.clone());
+                    if operation == Operation::Receive && tx.receiver_address.is_some() {
+                        response.push(DepositActivityDetails {
+                            rune: rune.clone(),
+                            tx: tx.clone(),
+                        });
                     }
 
                     if operation == Operation::Send
@@ -63,15 +69,17 @@ pub async fn get_activity_bitcoin_addr(
                         && tx.receiver_address.is_some()
                     {
                         // we ensure the receiver is one of our addresses
-                        let receiver_addr =
-                            tx.clone().receiver_address.unwrap();
+                        let receiver_addr = tx.clone().receiver_address.unwrap();
                         if state
                             .db
                             .is_deposit_addr(session, receiver_addr)
                             .await
                             .is_ok()
                         {
-                            response.push(tx);
+                            response.push(DepositActivityDetails {
+                                rune: rune.clone(),
+                                tx,
+                            });
                         }
                     }
                 }

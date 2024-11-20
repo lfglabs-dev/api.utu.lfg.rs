@@ -24,9 +24,6 @@ impl AppStateTraitInitializer for AppState {
         .unwrap()
         .database(&env::var("MONGODB_NAME").expect("MONGODB_NAME must be set"));
 
-        Arc::new_cyclic(|_| AppState {
-            logger,
-            db,
-        })
+        Arc::new_cyclic(|_| AppState { logger, db })
     }
 }
