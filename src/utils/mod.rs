@@ -8,7 +8,6 @@ pub mod deposit;
 pub mod deposit_activity;
 pub mod macros;
 pub mod starknet;
-pub mod starknet_tx;
 
 pub_struct!(Debug, Clone, Copy, PartialEq, Eq; Address {
     felt: FieldElement
@@ -51,6 +50,7 @@ impl fmt::Display for Address {
 }
 
 impl Address {
+    #[allow(dead_code)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         let felt = if s.starts_with("0x") {
             FieldElement::from_hex_be(s)

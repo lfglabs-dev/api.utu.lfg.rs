@@ -34,53 +34,46 @@ pub async fn get_activity_bitcoin_addr(
             );
 
             let client = Client::new();
-            match client
+            let res = client
                 .get(url)
                 .header("x-api-key", HIRO_API_KEY.clone())
                 .send()
-                .await
-            {
-                Ok(res) => {
-                    if res.status().is_success() {
-                        match res.json::<RuneActivityForAddress>().await {
-                            Ok(account_activity) => {
-                                // println!("Block Activity: {:?}", block_activity);
-                                total = account_activity.total;
+                .await?;
 
-                                for tx in account_activity.results {
-                                    if tx.operation == operation {
-                                        if operation == Operation::Receive
-                                            && tx.receiver_address.is_some()
-                                        {
-                                            response.push(tx.clone());
-                                        }
+            if !res.status().is_success() {
+                state.logger.warning(format!("Failed to fetch block activity for rune {} and bitcoin_addr {}", rune.clone().name, bitcoin_addr));
+                break;
+            }
 
-                                        if operation == Operation::Send
-                                            && tx.address.is_some()
-                                            && tx.receiver_address.is_some()
-                                        {
-                                            // we ensure the receiver is one of our addresses 
-                                            let receiver_addr = tx.clone().receiver_address.unwrap();
-                                            if state
-                                                .db
-                                                .is_deposit_addr(session, receiver_addr)
-                                                .await
-                                                .is_ok()
-                                            {
-                                                response.push(tx);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                println!("Failed to deserialize response: {:?}", err);
-                            }
+            let account_activity = res.json::<RuneActivityForAddress>().await?;
+            total = account_activity.total;
+
+            for tx in account_activity.results {
+                if tx.operation == operation {
+                    //todo: we need to include the rune details in the response
+
+                    if operation == Operation::Receive
+                        && tx.receiver_address.is_some()
+                    {
+                        response.push(tx.clone());
+                    }
+
+                    if operation == Operation::Send
+                        && tx.address.is_some()
+                        && tx.receiver_address.is_some()
+                    {
+                        // we ensure the receiver is one of our addresses
+                        let receiver_addr =
+                            tx.clone().receiver_address.unwrap();
+                        if state
+                            .db
+                            .is_deposit_addr(session, receiver_addr)
+                            .await
+                            .is_ok()
+                        {
+                            response.push(tx);
                         }
                     }
-                }
-                Err(e) => {
-                    eprintln!("Failed to fetch block activity: {}", e)
                 }
             }
 

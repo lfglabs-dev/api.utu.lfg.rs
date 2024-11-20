@@ -1,10 +1,5 @@
 use bitcoincore_rpc::Client;
 use mongodb::Database;
-use starknet::{
-    accounts::SingleOwnerAccount,
-    providers::{jsonrpc::HttpTransport, JsonRpcClient},
-    signers::LocalWallet,
-};
 use thiserror::Error;
 
 use axum::{body::Body, Router};
@@ -37,8 +32,6 @@ pub struct AppState {
     pub logger: Logger,
     pub db: Database,
     pub bitcoin_provider: Client,
-    pub starknet_provider: JsonRpcClient<HttpTransport>,
-    pub starknet_account: SingleOwnerAccount<JsonRpcClient<HttpTransport>, LocalWallet>,
 }
 
 // required for axum_auto_routes

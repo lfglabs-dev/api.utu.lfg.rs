@@ -37,25 +37,21 @@ pub async fn get_deposit_bitcoin(
     // We retrieve deposits from hiro api, we're looking for deposits that have a type Operation::Send
     // and where the receiver_address will be one of our deposit addresses
     // and matches the runes we support
-    let deposits = match get_activity_bitcoin_addr(
-        &state,
-        &mut session,
-        query.bitcoin_addr,
-        Operation::Send,
-    )
-    .await
-    {
-        Ok(deposits) => deposits,
-        Err(err) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ApiResponse::new(
-                    Status::InternalServerError,
-                    format!("Hiro API error: {:?}", err),
-                )),
-            )
-        }
-    };
+    let deposits =
+        match get_activity_bitcoin_addr(&state, &mut session, query.bitcoin_addr, Operation::Send)
+            .await
+        {
+            Ok(deposits) => deposits,
+            Err(err) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiResponse::new(
+                        Status::InternalServerError,
+                        format!("Hiro API error: {:?}", err),
+                    )),
+                )
+            }
+        };
 
     // todo: we need to filter by status: pending, confirmed, claimed
 

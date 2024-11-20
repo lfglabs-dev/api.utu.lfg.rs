@@ -2,10 +2,8 @@ use std::{env, sync::Arc};
 
 use bitcoincore_rpc::Auth;
 use mongodb::options::ClientOptions;
-use reqwest::Url;
-use starknet::providers::{jsonrpc::HttpTransport, JsonRpcClient};
 
-use crate::{logger::Logger, utils::starknet_tx::get_account};
+use crate::logger::Logger;
 
 use super::AppState;
 
@@ -42,18 +40,10 @@ impl AppStateTraitInitializer for AppState {
         )
         .unwrap();
 
-        let starknet_provider = JsonRpcClient::new(HttpTransport::new(
-            Url::parse(&env::var("STARKNET_RPC_URL").expect("STARKNET_RPC_URL must be set"))
-                .unwrap(),
-        ));
-        let starknet_account = get_account().await;
-
         Arc::new_cyclic(|_| AppState {
             logger,
             db,
             bitcoin_provider,
-            starknet_provider,
-            starknet_account,
         })
     }
 }
