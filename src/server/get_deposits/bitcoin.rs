@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::runes::Operation;
+use crate::server::auth::middleware::rate_limit_middleware;
 use crate::server::responses::{ApiResponse, Status};
 use crate::state::AppState;
 use crate::try_start_session;
@@ -18,7 +19,7 @@ pub struct GetDepositBitcoin {
     bitcoin_addr: String,
 }
 
-#[route(get, "/get_deposits/bitcoin")]
+#[route(get, "/get_deposits/bitcoin", rate_limit_middleware)]
 pub async fn get_deposit_bitcoin(
     State(state): State<Arc<AppState>>,
     Query(query): Query<GetDepositBitcoin>,

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::runes::Operation;
+use crate::server::auth::middleware::rate_limit_middleware;
 use crate::server::responses::{ApiResponse, Status};
 use crate::state::database::DatabaseExt;
 use crate::state::AppState;
@@ -20,7 +21,7 @@ pub struct GetDepositStarknet {
     starknet_addr: Address,
 }
 
-#[route(get, "/get_deposits/starknet")]
+#[route(get, "/get_deposits/starknet", rate_limit_middleware)]
 pub async fn get_deposit_starknet(
     State(state): State<Arc<AppState>>,
     Query(query): Query<GetDepositStarknet>,

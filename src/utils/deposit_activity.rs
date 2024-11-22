@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, str::FromStr, sync::Arc};
+use std::{collections::HashMap, env, str::FromStr, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use bitcoin::BlockHash;
@@ -11,13 +11,18 @@ use crate::{
         deposit::{DepositActivityDetails, DepositStatus},
         runes::{Operation, RuneActivityForAddress},
     },
-    state::{database::DatabaseExt, AppState},
+    state::{database::DatabaseExt, rate_limit::RateLimitStateTrait, AppState},
 };
 
 lazy_static::lazy_static! {
     static ref HIRO_API_URL: String = env::var("HIRO_API_URL").expect("HIRO_API_URL must be set");
     static ref HIRO_API_KEY: String = env::var("HIRO_API_KEY").expect("HIRO_API_KEY must be set");
     static ref MIN_CONFIRMATIONS: i32 = env::var("MIN_CONFIRMATIONS").expect("MIN_CONFIRMATIONS must be set").parse::<i32>().expect("unable to parse MIN_CONFIRMATIONS as i32");
+    static ref HTTP_CLIENT: Client = Client::builder()
+        .timeout(Duration::from_secs(10))
+        .pool_max_idle_per_host(10)
+        .build()
+        .expect("Failed to create HTTP client");
 }
 
 pub async fn get_activity_bitcoin_addr(
@@ -34,13 +39,14 @@ pub async fn get_activity_bitcoin_addr(
         let mut offset = 0;
         let mut total = 0;
         loop {
+            state.rate_limit.add_entry().await;
+
             let url = format!(
                 "{}/runes/v1/etchings/{}/activity/{}?offset={}&limit=60",
                 *HIRO_API_URL, rune.id, bitcoin_addr, offset
             );
 
-            let client = Client::new();
-            let res = client
+            let res = HTTP_CLIENT
                 .get(url)
                 .header("x-api-key", HIRO_API_KEY.clone())
                 .send()
