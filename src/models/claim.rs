@@ -15,5 +15,6 @@ pub struct ClaimData {
     pub amount: (FieldElement, FieldElement),
     pub target_addr: Address,
     pub tx_id: String,
+    pub tx_id_u256: (FieldElement, FieldElement),
     pub sig: Signature,
 }

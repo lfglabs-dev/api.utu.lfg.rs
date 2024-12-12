@@ -13,6 +13,8 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
+use bigdecimal::num_bigint::BigInt;
+use bigdecimal::Num;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -135,11 +137,26 @@ pub async fn claim_deposit_data(
         }
     };
 
+    let tx_id = body.tx_data.clone().location.tx_id;
+    let tx_id_u256 = match BigInt::from_str_radix(&tx_id, 16) {
+        Ok(tx_id) => to_uint256(tx_id),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::new(
+                    Status::InternalServerError,
+                    format!("Error while converting tx_id to u256: {}", e),
+                )),
+            )
+        }
+    };
+
     let claim_data = ClaimData {
         rune_id,
         amount,
         target_addr: body.starknet_addr,
-        tx_id: body.tx_data.clone().location.tx_id,
+        tx_id,
+        tx_id_u256,
         sig: Signature {
             r: signature.r,
             s: signature.s,
@@ -154,27 +171,14 @@ pub async fn claim_deposit_data(
 
 #[cfg(test)]
 mod tests {
-    use crypto_bigint::{Encoding, U256};
+    use bigdecimal::{num_bigint::BigInt, Num};
     use starknet::core::{
         crypto::{ecdsa_sign, pedersen_hash},
         types::FieldElement,
     };
     use starknet_crypto::get_public_key;
 
-    fn to_u256(tx_id: &str) -> (u128, u128) {
-        // Convert the hex string to U256
-        let tx_u256 = U256::from(U256::from_be_hex(tx_id));
-
-        // Extract high and low as u128
-        let high_u128 = (tx_u256 >> 128).to_be_bytes()[..16].try_into().unwrap();
-        let low_u128 = tx_u256.to_be_bytes()[16..].try_into().unwrap();
-
-        // Convert the bytes directly to u128
-        let high_u128 = u128::from_be_bytes(high_u128);
-        let low_u128 = u128::from_be_bytes(low_u128);
-
-        (low_u128, high_u128)
-    }
+    use crate::utils::starknet::to_uint256;
 
     #[test]
     fn test_generate_signature() {
@@ -187,11 +191,11 @@ mod tests {
         let addr = FieldElement::from(504447201841_u128);
 
         let tx_deposit_id = "a795ede3bec4b9095eb207bff4abacdbcdd1de065788d4ffb53b1ea3fe5d67fb";
-        let tx_u256 = to_u256(tx_deposit_id);
+        let tx_u256 = to_uint256(BigInt::from_str_radix(tx_deposit_id, 16).unwrap());
 
         let hashed = pedersen_hash(
             &pedersen_hash(&pedersen_hash(&rune_id, &amount.0), &addr),
-            &FieldElement::from(tx_u256.0),
+            &tx_u256.0,
         );
 
         assert_eq!(
