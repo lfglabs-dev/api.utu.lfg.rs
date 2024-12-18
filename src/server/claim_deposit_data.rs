@@ -24,8 +24,8 @@ use starknet::core::types::FieldElement;
 use super::responses::{ApiResponse, Status};
 
 lazy_static::lazy_static! {
-    static ref RUNES_BRIDGE_PRIV_KEY: FieldElement =   FieldElement::from_hex_be(&env::var("RUNES_BRIDGE_PRIV_KEY")
-    .expect("RUNES_BRIDGE_PRIV_KEY must be set")).expect("Invalid RUNES_BRIDGE_PRIV_KEY");
+    static ref RUNES_BRIDGE_STARKNET_PRIV_KEY: FieldElement =   FieldElement::from_hex_be(&env::var("RUNES_BRIDGE_STARKNET_PRIV_KEY")
+    .expect("RUNES_BRIDGE_STARKNET_PRIV_KEY must be set")).expect("Invalid RUNES_BRIDGE_STARKNET_PRIV_KEY");
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -124,7 +124,7 @@ pub async fn claim_deposit_data(
             ),
         ),
     );
-    let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_PRIV_KEY, &hashed) {
+    let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
         Ok(signature) => signature,
         Err(e) => {
             return (
