@@ -98,7 +98,7 @@ impl DatabaseExt for Database {
 
         let mut res: Vec<SupportedRuneDocument> = Vec::new();
 
-       while let Some(doc_result) = cursor.next(session).await {
+        while let Some(doc_result) = cursor.next(session).await {
             match doc_result {
                 Ok(doc) => res.push(doc),
                 Err(err) => return Err(DatabaseError::QueryFailed(err)),
