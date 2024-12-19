@@ -13,8 +13,6 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
-use bigdecimal::num_bigint::BigInt;
-use bigdecimal::Num;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -137,26 +135,11 @@ pub async fn claim_deposit_data(
         }
     };
 
-    let tx_id = body.tx_data.clone().location.tx_id;
-    let tx_id_u256 = match BigInt::from_str_radix(&tx_id, 16) {
-        Ok(tx_id) => to_uint256(tx_id),
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ApiResponse::new(
-                    Status::InternalServerError,
-                    format!("Error while converting tx_id to u256: {}", e),
-                )),
-            )
-        }
-    };
-
     let claim_data = ClaimData {
         rune_id,
         amount,
         target_addr: body.starknet_addr,
-        tx_id,
-        tx_id_u256,
+        tx_id: body.tx_data.clone().location.tx_id,
         sig: Signature {
             r: signature.r,
             s: signature.s,
