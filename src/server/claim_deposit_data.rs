@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::models::activity::BlockActivity;
 use crate::models::claim::{ClaimData, Signature};
+use crate::models::deposit::DepositDocument;
 use crate::models::runes::Operation;
 use crate::state::database::DatabaseExt;
 use crate::state::AppState;
@@ -34,6 +35,7 @@ pub struct ClaimDepositDataQuery {
     starknet_addr: Address,
     bitcoin_deposit_addr: String,
     tx_id: String,
+    tx_vout: Option<u64>,
 }
 
 #[route(post, "/claim_deposit_data")]
@@ -77,10 +79,11 @@ pub async fn claim_deposit_data(
                         )),
                     );
                 };
-                let tx = res
-                    .results
-                    .into_iter()
-                    .find(|tx| tx.location.tx_id == body.tx_id && tx.operation == Operation::Send);
+                let tx = res.results.into_iter().find(|tx| {
+                    tx.location.tx_id == body.tx_id
+                        && tx.operation == Operation::Receive
+                        && tx.location.vout == body.tx_vout
+                });
 
                 if let Some(tx) = tx {
                     tx
@@ -158,38 +161,36 @@ pub async fn claim_deposit_data(
         );
     };
 
-    let amount = match tx_data.clone().amount {
-        Some(amount) => {
-            let amount_bigint = match convert_to_bigint(&amount, rune.divisibility) {
-                Ok(amount_bigint) => amount_bigint,
-                Err(err) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ApiResponse::new(
-                            Status::InternalServerError,
-                            format!("Amount is not a valid number: {:?}", err),
-                        )),
-                    )
-                }
-            };
-            to_uint256(amount_bigint)
-        }
-        _ => {
+    let amount = if let Some(amount) = tx_data.clone().amount {
+        amount
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Amount is not specified: {:?}", tx_data.clone().amount),
+            )),
+        );
+    };
+    let amount_bigint = match convert_to_bigint(&amount, rune.divisibility) {
+        Ok(amount_bigint) => amount_bigint,
+        Err(err) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse::new(
                     Status::InternalServerError,
-                    format!("Amount is not specified: {:?}", tx_data.clone().amount),
+                    format!("Amount is not a valid number: {:?}", err),
                 )),
             )
         }
     };
+    let amount_felt = to_uint256(amount_bigint);
 
     // Compute signature of (rune_id, rune_amount, target_addr, deposit_tx_id)
     let hashed = pedersen_hash(
         &rune_id,
         &pedersen_hash(
-            &amount.0,
+            &amount_felt.0,
             &pedersen_hash(
                 &body.starknet_addr.felt,
                 &FieldElement::from_str(&body.tx_id).unwrap(),
@@ -209,9 +210,55 @@ pub async fn claim_deposit_data(
         }
     };
 
+    let vout = if let Some(vout) = tx_data.location.vout {
+        vout as u32
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Vout is not specified: {:?}", tx_data.location.vout),
+            )),
+        );
+    };
+
+    // store deposit into database
+    if let Err(err) = state
+        .db
+        .store_deposit(
+            &mut session,
+            DepositDocument {
+                identifier: format!("{}:{}", body.tx_id.clone(), vout),
+                tx_id: body.tx_id.clone(),
+                vout,
+                rune: tx_data.rune,
+                amount,
+            },
+        )
+        .await
+    {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Database error: {:?}", err),
+            )),
+        );
+    }
+
+    if let Err(err) = session.commit_transaction().await {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Database error: {:?}", err),
+            )),
+        );
+    };
+
     let claim_data = ClaimData {
         rune_id,
-        amount,
+        amount: amount_felt,
         target_addr: body.starknet_addr,
         tx_id: body.tx_id.clone(),
         sig: Signature {

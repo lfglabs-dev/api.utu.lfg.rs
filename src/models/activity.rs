@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use super::runes::{Location, Operation};
+use super::{
+    deposit::Rune,
+    runes::{Location, Operation},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockActivity {
@@ -18,11 +21,4 @@ pub struct BlockActivityResult {
     pub amount: Option<String>,
     pub operation: Operation,
     pub location: Location,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Rune {
-    pub id: String,
-    pub name: String,
-    pub spaced_name: String,
 }

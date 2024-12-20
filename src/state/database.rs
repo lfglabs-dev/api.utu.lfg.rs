@@ -4,7 +4,10 @@ use mongodb::{
 };
 
 use crate::{
-    models::{deposit::DepositAddressDocument, runes::SupportedRuneDocument},
+    models::{
+        deposit::{DepositAddressDocument, DepositDocument},
+        runes::SupportedRuneDocument,
+    },
     utils::Address,
 };
 
@@ -40,6 +43,11 @@ pub trait DatabaseExt {
         &self,
         session: &mut ClientSession,
         tx_id: String,
+    ) -> Result<(), DatabaseError>;
+    async fn store_deposit(
+        &self,
+        session: &mut ClientSession,
+        deposit: DepositDocument,
     ) -> Result<(), DatabaseError>;
 }
 
@@ -159,5 +167,19 @@ impl DatabaseExt for Database {
             Some(_) => Ok(()),
             None => Err(DatabaseError::NotFound),
         }
+    }
+
+    async fn store_deposit(
+        &self,
+        session: &mut ClientSession,
+        deposit: DepositDocument,
+    ) -> Result<(), DatabaseError> {
+        self.collection::<DepositDocument>("claimed_runes_deposits")
+            .insert_one(deposit)
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        Ok(())
     }
 }
