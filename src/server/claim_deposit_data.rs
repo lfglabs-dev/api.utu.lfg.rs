@@ -2,8 +2,10 @@ use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::models::activity::BlockActivityResult;
+use crate::models::activity::BlockActivity;
 use crate::models::claim::{ClaimData, Signature};
+use crate::models::deposit::DepositDocument;
+use crate::models::runes::Operation;
 use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
@@ -14,7 +16,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
 use mongodb::bson::doc;
-use reqwest::StatusCode;
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use starknet::core::crypto::{ecdsa_sign, pedersen_hash, ExtendedSignature};
 use starknet::core::types::FieldElement;
@@ -24,13 +26,16 @@ use super::responses::{ApiResponse, Status};
 lazy_static::lazy_static! {
     static ref RUNES_BRIDGE_STARKNET_PRIV_KEY: FieldElement =   FieldElement::from_hex_be(&env::var("RUNES_BRIDGE_STARKNET_PRIV_KEY")
     .expect("RUNES_BRIDGE_STARKNET_PRIV_KEY must be set")).expect("Invalid RUNES_BRIDGE_STARKNET_PRIV_KEY");
+    static ref HIRO_API_URL: String = env::var("HIRO_API_URL").expect("HIRO_API_URL must be set");
+    static ref HIRO_API_KEY: String = env::var("HIRO_API_KEY").expect("HIRO_API_KEY must be set");
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaimDepositDataQuery {
     starknet_addr: Address,
     bitcoin_deposit_addr: String,
-    tx_data: BlockActivityResult,
+    tx_id: String,
+    tx_vout: Option<u64>,
 }
 
 #[route(post, "/claim_deposit_data")]
@@ -49,10 +54,82 @@ pub async fn claim_deposit_data(
         );
     };
 
+    // Fetch BlockActivityResult
+    let url = format!(
+        "{}/runes/v1/transactions/{}/activity",
+        *HIRO_API_URL, body.tx_id
+    );
+    let client = Client::new();
+    let tx_data = match client
+        .get(url)
+        .header("x-api-key", HIRO_API_KEY.clone())
+        .send()
+        .await
+    {
+        Ok(res) => {
+            if res.status().is_success() {
+                let res: BlockActivity = if let Ok(tx) = res.json::<BlockActivity>().await {
+                    tx
+                } else {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ApiResponse::new(
+                            Status::InternalServerError,
+                            format!("Failed to retrieve tx activity for tx_id {}", body.tx_id),
+                        )),
+                    );
+                };
+                let tx = res.results.into_iter().find(|tx| {
+                    tx.location.tx_id == body.tx_id
+                        && tx.operation == Operation::Receive
+                        && tx.location.vout == body.tx_vout
+                });
+
+                if let Some(tx) = tx {
+                    tx
+                } else {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ApiResponse::new(
+                            Status::InternalServerError,
+                            format!(
+                                "Failed to retrieve a send activity for tx_id {}",
+                                body.tx_id
+                            ),
+                        )),
+                    );
+                }
+            } else {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiResponse::new(
+                        Status::InternalServerError,
+                        format!(
+                            "Failed to fetch transaction activity for tx_id {}",
+                            body.tx_id
+                        ),
+                    )),
+                );
+            }
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::new(
+                    Status::InternalServerError,
+                    format!(
+                        "Failed to fetch block activity for tx_id {}: {}",
+                        body.tx_id, e
+                    ),
+                )),
+            );
+        }
+    };
+
     // For now we return the arguments for the claim_rune tx : rune_id: u8, rune_amount: u256, target_addr: ContractAddress
     let rune = match state
         .db
-        .get_rune(&mut session, body.tx_data.clone().rune.id)
+        .get_rune(&mut session, tx_data.clone().rune.id)
         .await
     {
         Ok(rune) => rune,
@@ -84,41 +161,39 @@ pub async fn claim_deposit_data(
         );
     };
 
-    let amount = match body.tx_data.clone().amount {
-        Some(amount) => {
-            let amount_bigint = match convert_to_bigint(&amount, rune.divisibility) {
-                Ok(amount_bigint) => amount_bigint,
-                Err(err) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ApiResponse::new(
-                            Status::InternalServerError,
-                            format!("Amount is not a valid number: {:?}", err),
-                        )),
-                    )
-                }
-            };
-            to_uint256(amount_bigint)
-        }
-        _ => {
+    let amount = if let Some(amount) = tx_data.clone().amount {
+        amount
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Amount is not specified: {:?}", tx_data.clone().amount),
+            )),
+        );
+    };
+    let amount_bigint = match convert_to_bigint(&amount, rune.divisibility) {
+        Ok(amount_bigint) => amount_bigint,
+        Err(err) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse::new(
                     Status::InternalServerError,
-                    format!("Amount is not specified: {:?}", body.tx_data.clone().amount),
+                    format!("Amount is not a valid number: {:?}", err),
                 )),
             )
         }
     };
+    let amount_felt = to_uint256(amount_bigint);
 
     // Compute signature of (rune_id, rune_amount, target_addr, deposit_tx_id)
     let hashed = pedersen_hash(
         &rune_id,
         &pedersen_hash(
-            &amount.0,
+            &amount_felt.0,
             &pedersen_hash(
                 &body.starknet_addr.felt,
-                &FieldElement::from_str(&body.tx_data.location.tx_id).unwrap(),
+                &FieldElement::from_str(&body.tx_id).unwrap(),
             ),
         ),
     );
@@ -135,11 +210,57 @@ pub async fn claim_deposit_data(
         }
     };
 
+    let vout = if let Some(vout) = tx_data.location.vout {
+        vout as u32
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Vout is not specified: {:?}", tx_data.location.vout),
+            )),
+        );
+    };
+
+    // store deposit into database
+    if let Err(err) = state
+        .db
+        .store_deposit(
+            &mut session,
+            DepositDocument {
+                identifier: format!("{}:{}", body.tx_id.clone(), vout),
+                tx_id: body.tx_id.clone(),
+                vout,
+                rune: tx_data.rune,
+                amount,
+            },
+        )
+        .await
+    {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Database error: {:?}", err),
+            )),
+        );
+    }
+
+    if let Err(err) = session.commit_transaction().await {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Database error: {:?}", err),
+            )),
+        );
+    };
+
     let claim_data = ClaimData {
         rune_id,
-        amount,
+        amount: amount_felt,
         target_addr: body.starknet_addr,
-        tx_id: body.tx_data.clone().location.tx_id,
+        tx_id: body.tx_id.clone(),
         sig: Signature {
             r: signature.r,
             s: signature.s,
