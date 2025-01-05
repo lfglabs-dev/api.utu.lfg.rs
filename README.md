@@ -23,7 +23,7 @@ This repository hosts the backend service for the Utu Runes Bridge, a centralize
 
 ### Address Generation
 ```
-GET /get_bitcoin_deposit_addr/{starknet_address}
+GET /get_bitcoin_deposit_addr?starknet_addr=xxx
 ```
 Generates a Bitcoin deposit address for a given Starknet address (and stores the mapping in db if not done already).
 
@@ -37,8 +37,8 @@ Response:
 
 ### Deposit Queries
 ```
-GET /get_deposits/bitcoin?bitcoin_address=xxx
-GET /get_deposits/starknet?starknet_address=xxx
+GET /get_deposits/bitcoin?bitcoin_addr=xxx
+GET /get_deposits/starknet?starknet_addr=xxx
 ```
 Query deposits and their status for either a Bitcoin or Starknet address.
 
