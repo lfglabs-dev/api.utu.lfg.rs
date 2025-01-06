@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::models::runes::Operation;
 use crate::server::auth::middleware::rate_limit_middleware;
 use crate::server::responses::{ApiResponse, Status};
 use crate::state::AppState;
@@ -39,9 +38,7 @@ pub async fn get_deposit_bitcoin(
     // and where the receiver_address will be one of our deposit addresses
     // and matches the runes we support
     let deposits =
-        match get_activity_bitcoin_addr(&state, &mut session, query.bitcoin_addr, Operation::Send)
-            .await
-        {
+        match get_activity_bitcoin_addr(&state, &mut session, query.bitcoin_addr, None).await {
             Ok(deposits) => deposits,
             Err(err) => {
                 return (
