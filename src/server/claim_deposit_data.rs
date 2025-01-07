@@ -9,6 +9,7 @@ use crate::models::runes::Operation;
 use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
+use crate::utils::deposit::get_bitcoin_addr_from_starknet_addr;
 use crate::utils::starknet::{convert_to_bigint, to_uint256};
 use crate::utils::Address;
 use axum::extract::State;
@@ -124,6 +125,34 @@ pub async fn claim_deposit_data(
             );
         }
     };
+
+    if  tx_data.address.is_none() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!(
+                    "Failed to retrieve a address of Receive operation for tx_id {}",
+                    body.tx_id
+                ),
+            )),
+        );
+    }
+
+    // Recompute bitcoin_deposit_addr from starknet_addr to ensure it's correct
+    let bitcoin_deposit_addr = get_bitcoin_addr_from_starknet_addr(body.starknet_addr);
+    if bitcoin_deposit_addr != tx_data.clone().address.unwrap() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!(
+                    "Bitcoin deposit address does not match for starknet address: {:?}",
+                    body.starknet_addr
+                ),
+            )),
+        );
+    }
 
     // For now we return the arguments for the claim_rune tx : rune_id: u8, rune_amount: u256, target_addr: ContractAddress
     let rune = match state
