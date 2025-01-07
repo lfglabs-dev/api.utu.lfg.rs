@@ -33,7 +33,6 @@ lazy_static::lazy_static! {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaimDepositDataQuery {
     starknet_addr: Address,
-    bitcoin_deposit_addr: String,
     tx_id: String,
     tx_vout: Option<u64>,
 }
