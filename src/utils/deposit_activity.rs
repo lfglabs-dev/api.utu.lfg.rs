@@ -30,7 +30,7 @@ pub async fn get_activity_bitcoin_addr(
     state: &Arc<AppState>,
     session: &mut ClientSession,
     bitcoin_sending_addr: String,
-    bitcoin_deposit_addr: Option<String>,
+    operation: Operation,
 ) -> Result<Vec<DepositActivityDetails>> {
     let mut response: Vec<DepositActivityDetails> = Vec::new();
 
@@ -66,20 +66,22 @@ pub async fn get_activity_bitcoin_addr(
             total = account_activity.total;
 
             for tx in account_activity.results {
-                if tx.operation == Operation::Send
-                    && tx.address.is_some()
-                    && tx.receiver_address.is_some()
-                {
-                    // we ensure the receiver is one of our addresses or the bitcoin_deposit_addr specified
-                    let receiver_addr = tx.clone().receiver_address.unwrap();
-                    if bitcoin_deposit_addr.is_some()
-                        && receiver_addr == bitcoin_deposit_addr.clone().unwrap()
-                    {
+                if tx.operation == operation {
+                    // Operation of type Receive (for starknet)
+                    if operation == Operation::Receive && tx.address.is_some() {
                         response.push(DepositActivityDetails {
                             rune: rune.clone(),
-                            tx,
+                            tx: tx.clone(),
                         });
-                    } else {
+                    }
+
+                    // Operation of type Send (for bitcoin)
+                    if tx.operation == Operation::Send
+                        && tx.address.is_some()
+                        && tx.receiver_address.is_some()
+                    {
+                        // we ensure the receiver is one of our deposit addresses
+                        let receiver_addr = tx.clone().receiver_address.unwrap();
                         if state
                             .db
                             .is_deposit_addr(session, receiver_addr)
@@ -142,96 +144,4 @@ pub async fn filter_deposits(
         }
     }
     Ok(filtered_deposits)
-}
-
-pub async fn get_activity_bitcoin_addr_from_starknet(
-    state: &Arc<AppState>,
-    session: &mut ClientSession,
-    bitcoin_deposit_addr: String,
-) -> Result<Vec<DepositActivityDetails>> {
-    let mut bitcoin_sending_addresses: Vec<String> = Vec::new();
-    let mut response: Vec<DepositActivityDetails> = Vec::new();
-
-    // retrieve available runes
-    let runes = state.db.get_supported_runes(session).await?;
-    for rune in runes {
-        let mut offset = 0;
-        let mut total = 0;
-        loop {
-            state.rate_limit.add_entry().await;
-
-            let url = format!(
-                "{}/runes/v1/etchings/{}/activity/{}?offset={}&limit=60",
-                *HIRO_API_URL, rune.id, bitcoin_deposit_addr, offset
-            );
-
-            let res = HTTP_CLIENT
-                .get(url)
-                .header("x-api-key", HIRO_API_KEY.clone())
-                .send()
-                .await?;
-
-            if !res.status().is_success() {
-                state.logger.warning(format!(
-                    "Failed to fetch block activity for rune {} and bitcoin_deposit_addr {}",
-                    rune.clone().name,
-                    bitcoin_deposit_addr
-                ));
-                break;
-            }
-
-            let account_activity = res.json::<RuneActivityForAddress>().await?;
-            total = account_activity.total;
-
-            for tx in account_activity.results {
-                if tx.operation == Operation::Receive && tx.address.is_some() {
-                    let txid = tx.location.tx_id.clone();
-
-                    // We query api to get sending address
-                    let url = format!(
-                        "{}/runes/v1/transactions/{}/activity?offset=1&limit=60",
-                        *HIRO_API_URL, txid
-                    );
-                    let res = HTTP_CLIENT
-                        .get(url)
-                        .header("x-api-key", HIRO_API_KEY.clone())
-                        .send()
-                        .await?;
-
-                    if res.status().is_success() {
-                        for tx in res.json::<RuneActivityForAddress>().await?.results {
-                            if tx.operation == Operation::Send && tx.address.is_some() {
-                                // We add this address into the list of addresses to check
-                                let sending_addr = tx.address.unwrap();
-                                if !bitcoin_sending_addresses.contains(&sending_addr) {
-                                    bitcoin_sending_addresses.push(sending_addr);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // we fetch 60 results at a time but total activity could be more
-            offset += 1;
-            if total <= offset * 60 {
-                break;
-            }
-        }
-
-        // Once we have all the sending addresses, we call get_activity_bitcoin_addr for each of them
-        // We specify bitcoin_deposit_addr and we retrieve only deposits made to that bitcoin_deposit_addr
-        for sending_addr in &bitcoin_sending_addresses {
-            let deposits = get_activity_bitcoin_addr(
-                state,
-                session,
-                sending_addr.to_string(),
-                Some(bitcoin_deposit_addr.clone()),
-            )
-            .await?;
-            response.extend(deposits);
-        }
-    }
-
-    Ok(response)
 }
