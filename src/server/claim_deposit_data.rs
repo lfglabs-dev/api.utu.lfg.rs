@@ -139,7 +139,7 @@ pub async fn claim_deposit_data(
         );
     }
 
-    // Recompute bitcoin_deposit_addr from starknet_addr to ensure it's correct
+    // Recompute bitcoin_deposit_addr from starknet_addr and ensure it matches the one in tx_data
     let bitcoin_deposit_addr = get_bitcoin_addr_from_starknet_addr(body.starknet_addr);
     if bitcoin_deposit_addr != tx_data.clone().address.unwrap() {
         return (
