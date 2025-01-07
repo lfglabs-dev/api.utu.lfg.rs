@@ -40,7 +40,16 @@ Response:
 GET /get_deposits/bitcoin?bitcoin_addr=xxx
 GET /get_deposits/starknet?starknet_addr=xxx
 ```
-Query deposits and their status for either a Bitcoin or Starknet address.
+Query deposits and their status:
+- `/get_deposits/bitcoin`: Query by the Bitcoin address that **sent** the runes (e.g., your Xverse wallet address)
+- `/get_deposits/starknet`: Query by the Starknet address that will receive the bridged tokens
+
+For example:
+1. User generates a deposit address using `/get_bitcoin_deposit_addr?starknet_addr=0x123`
+2. User sends runes from their wallet (e.g., Xverse address bc1p...) to the generated deposit address
+3. User can then query the deposit status using either:
+   - `/get_deposits/bitcoin?bitcoin_addr=bc1p...` (their Xverse wallet address)
+   - `/get_deposits/starknet?starknet_addr=0x123` (their Starknet address)
 
 Response:
 ```json
@@ -96,7 +105,7 @@ Response:
 }
 ```
 
-The deposits are grouped by their status: `pending`, `confirmed`, or `claimed`. Each status contains an array of deposit activities with their associated runes information.
+The deposits are grouped by their status: `pending` (< 6 confirmations), `confirmed` (≥ 6 confirmations), or `claimed` (already bridged to Starknet).
 
 ### Claim Data
 ```
