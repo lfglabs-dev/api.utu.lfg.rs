@@ -1,5 +1,4 @@
 use std::env;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::models::activity::BlockActivity;
@@ -10,7 +9,7 @@ use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
 use crate::utils::deposit::get_bitcoin_addr_from_starknet_addr;
-use crate::utils::starknet::{convert_to_bigint, to_uint256};
+use crate::utils::starknet::{convert_to_bigint, hex_to_uint256, to_uint256};
 use crate::utils::Address;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -214,13 +213,24 @@ pub async fn claim_deposit_data(
     };
     let amount_felt = to_uint256(amount_bigint);
 
+    let tx_id_felt = if let Ok(tx_id) = hex_to_uint256(&body.tx_id) {
+        tx_id
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::new(
+                Status::InternalServerError,
+                format!("Invalid tx_id: {:?}", body.tx_id),
+            )),
+        );
+    };
+
     // Compute signature of (rune_id, rune_amount, target_addr, deposit_tx_id)
     let hashed = pedersen_hash(
         &rune_id,
         &pedersen_hash(
             &amount_felt.0,
-            // temporary to allow SW to test, ZERO must be replaced by low(u256(body.tx_id))
-            &pedersen_hash(&body.starknet_addr.felt, &FieldElement::ZERO),
+            &pedersen_hash(&body.starknet_addr.felt, &tx_id_felt.0),
         ),
     );
     let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
