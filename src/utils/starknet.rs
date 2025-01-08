@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-use anyhow::Result;
-use bigdecimal::num_bigint::BigInt;
+use anyhow::{Ok, Result};
+use bigdecimal::{num_bigint::BigInt, FromPrimitive};
 use num_integer::Integer;
+use rust_decimal::Decimal;
 use starknet::core::types::FieldElement;
 
 lazy_static::lazy_static! {
@@ -22,13 +23,17 @@ pub fn to_uint256(n: BigInt) -> (FieldElement, FieldElement) {
 
 pub fn convert_to_bigint(amount: &str, divisibility: u64) -> Result<BigInt> {
     // Parse the amount string to BigDecimal
-    let decimal_amount = BigInt::from_str(amount)?;
+    let decimal_amount = Decimal::from_str(amount)?;
 
     // Calculate the multiplicative factor from divisibility
-    let factor = BigInt::from(10u64).pow(divisibility.try_into()?);
+    let factor = Decimal::from_i64(10_i64.pow(divisibility as u32))
+        .ok_or_else(|| anyhow::anyhow!("Invalid divisibility factor"))?;
 
-    // Perform the multiplication
-    let result = decimal_amount * factor;
+    // Multiply the decimal amount by the factor
+    let scaled_amount = decimal_amount * factor;
 
-    Ok(result)
+    // Convert the scaled amount to BigInt (removing any fractional part)
+    let bigint_result = BigInt::from_str(&scaled_amount.trunc().to_string())?;
+
+    Ok(bigint_result)
 }
