@@ -38,7 +38,6 @@ pub async fn get_activity_bitcoin_addr(
     let runes = state.db.get_supported_runes(session).await?;
     for rune in runes {
         let mut offset = 0;
-        let mut total = 0;
         loop {
             state.rate_limit.add_entry().await;
 
@@ -63,7 +62,6 @@ pub async fn get_activity_bitcoin_addr(
             }
 
             let account_activity = res.json::<RuneActivityForAddress>().await?;
-            total = account_activity.total;
 
             for tx in account_activity.results {
                 if tx.operation == operation {
@@ -99,7 +97,7 @@ pub async fn get_activity_bitcoin_addr(
 
             // we fetch 60 results at a time but total activity could be more
             offset += 1;
-            if total <= offset * 60 {
+            if account_activity.total <= offset * 60 {
                 break;
             }
         }

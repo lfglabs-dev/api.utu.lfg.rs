@@ -37,3 +37,17 @@ pub fn convert_to_bigint(amount: &str, divisibility: u64) -> Result<BigInt> {
 
     Ok(bigint_result)
 }
+
+pub fn get_first_128_bits(tx_id: &str) -> Result<FieldElement> {
+    if tx_id.len() < 32 {
+        return Err(anyhow::anyhow!(
+            "tx_id must have at least 32 hex characters (128 bits)"
+        ));
+    }
+
+    // Take the first 32 characters (16 bytes / 128 bits) of the hex string
+    let first_128_bits = &tx_id[..32];
+
+    // Parse the substring as a FieldElement
+    Ok(FieldElement::from_hex_be(first_128_bits)?)
+}
