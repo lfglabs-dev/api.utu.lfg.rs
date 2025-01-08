@@ -219,10 +219,8 @@ pub async fn claim_deposit_data(
         &rune_id,
         &pedersen_hash(
             &amount_felt.0,
-            &pedersen_hash(
-                &body.starknet_addr.felt,
-                &FieldElement::from_str(&body.tx_id).unwrap(),
-            ),
+            // temporary to allow SW to test, ZERO must be replaced by low(u256(body.tx_id))
+            &pedersen_hash(&body.starknet_addr.felt, &FieldElement::ZERO),
         ),
     );
     let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
