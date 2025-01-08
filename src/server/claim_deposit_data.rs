@@ -126,7 +126,7 @@ pub async fn claim_deposit_data(
         }
     };
 
-    if  tx_data.address.is_none() {
+    if tx_data.address.is_none() {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse::new(
