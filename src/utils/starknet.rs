@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::Result;
-use bigdecimal::{num_bigint::BigInt, FromPrimitive};
+use bigdecimal::{num_bigint::BigInt, FromPrimitive, Num};
 use num_integer::Integer;
 use rust_decimal::Decimal;
 use starknet::core::types::FieldElement;
@@ -38,16 +38,19 @@ pub fn convert_to_bigint(amount: &str, divisibility: u64) -> Result<BigInt> {
     Ok(bigint_result)
 }
 
-pub fn get_first_128_bits(tx_id: &str) -> Result<FieldElement> {
-    if tx_id.len() < 32 {
-        return Err(anyhow::anyhow!(
-            "tx_id must have at least 32 hex characters (128 bits)"
-        ));
-    }
+pub fn hex_to_uint256(hex_str: &str) -> Result<(FieldElement, FieldElement)> {
+    // Parse the hexadecimal string into a BigInt
+    let n = BigInt::from_str_radix(hex_str, 16)?;
 
-    // Take the first 32 characters (16 bytes / 128 bits) of the hex string
-    let first_128_bits = &tx_id[..32];
+    // Split the BigInt into two 128-bit chunks (high and low)
+    let (n_high, n_low) = n.div_rem(&TWO_POW_128);
 
-    // Parse the substring as a FieldElement
-    Ok(FieldElement::from_hex_be(first_128_bits)?)
+    // Convert the chunks to byte arrays and then to FieldElement
+    let (_, low_bytes) = n_low.to_bytes_be();
+    let (_, high_bytes) = n_high.to_bytes_be();
+
+    Ok((
+        FieldElement::from_byte_slice_be(&low_bytes)?,
+        FieldElement::from_byte_slice_be(&high_bytes)?,
+    ))
 }

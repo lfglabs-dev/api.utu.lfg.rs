@@ -9,7 +9,7 @@ use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
 use crate::utils::deposit::get_bitcoin_addr_from_starknet_addr;
-use crate::utils::starknet::{convert_to_bigint, get_first_128_bits, to_uint256};
+use crate::utils::starknet::{convert_to_bigint, hex_to_uint256, to_uint256};
 use crate::utils::Address;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -213,7 +213,7 @@ pub async fn claim_deposit_data(
     };
     let amount_felt = to_uint256(amount_bigint);
 
-    let tx_id_felt = if let Ok(tx_id) = get_first_128_bits(&body.tx_id) {
+    let tx_id_felt = if let Ok(tx_id) = hex_to_uint256(&body.tx_id) {
         tx_id
     } else {
         return (
@@ -230,7 +230,7 @@ pub async fn claim_deposit_data(
         &rune_id,
         &pedersen_hash(
             &amount_felt.0,
-            &pedersen_hash(&body.starknet_addr.felt, &tx_id_felt),
+            &pedersen_hash(&body.starknet_addr.felt, &tx_id_felt.0),
         ),
     );
     let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
