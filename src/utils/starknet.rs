@@ -55,7 +55,6 @@ pub fn hex_to_uint256(hex_str: &str) -> Result<(FieldElement, FieldElement)> {
     ))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -67,9 +66,11 @@ mod tests {
         // Digest in cairo should be equal to the value below, using hex_to_hash_rev from auto_claim
         // [0x17e1d505, 0xa52c5b16, 0x9d460fcf, 0xe07ac05b, 0xd7b8ab2f, 0xee1a1ed8, 0x457517c8, 0x49edd6a8]
         // which is equal to { low: 121959160878427944421643839789432430871, high: 224426267596249609810929133391035742423) }
-        
-        let expected_low = FieldElement::from_dec_str("121959160878427944421643839789432430871").unwrap();
-        let expected_high = FieldElement::from_dec_str("224426267596249609810929133391035742423").unwrap();
+
+        let expected_low =
+            FieldElement::from_dec_str("121959160878427944421643839789432430871").unwrap();
+        let expected_high =
+            FieldElement::from_dec_str("224426267596249609810929133391035742423").unwrap();
 
         let (low, high) = hex_to_uint256(hex_tx_id).unwrap();
 

@@ -9,6 +9,7 @@ use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
 use crate::utils::deposit::get_bitcoin_addr_from_starknet_addr;
+use crate::utils::runes::symbol_as_felt;
 use crate::utils::starknet::{convert_to_bigint, hex_to_uint256, to_uint256};
 use crate::utils::Address;
 use axum::extract::State;
@@ -171,22 +172,7 @@ pub async fn claim_deposit_data(
         }
     };
 
-    let rune_id: FieldElement = if rune.symbol.chars().count() == 1 {
-        let single_char = rune.symbol.chars().next().unwrap();
-        FieldElement::from(single_char as u32)
-    } else {
-        state.logger.warning(format!(
-            "Rune symbol is not a valid character: {:?}",
-            rune.symbol
-        ));
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::new(
-                Status::InternalServerError,
-                format!("Rune symbol is not a single character: {:?}", rune.symbol),
-            )),
-        );
-    };
+    let rune_id: FieldElement = symbol_as_felt(rune.symbol);
 
     let amount = if let Some(amount) = tx_data.clone().amount {
         amount
