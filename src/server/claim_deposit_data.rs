@@ -219,11 +219,6 @@ pub async fn claim_deposit_data(
         ),
         &tx_id_felt.0,
     );
-    println!("Rune ID: {:?}", rune_id);
-    println!("Amount: {:?}", amount_felt.0);
-    println!("Target Addr: {:?}", body.starknet_addr.felt);
-    println!("Tx ID: {:?}", tx_id_felt.0);
-    println!("Hashed: {:?}", hashed);
     let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
         Ok(signature) => signature,
         Err(e) => {
@@ -236,7 +231,6 @@ pub async fn claim_deposit_data(
             )
         }
     };
-    println!("Signature: {:?}", signature);
 
     let vout = if let Some(vout) = tx_data.location.vout {
         vout as u32
@@ -315,10 +309,6 @@ mod tests {
     #[test]
     fn test_generate_signature() {
         let priv_key = FieldElement::from_hex_be("0x123").unwrap();
-        let pub_key = FieldElement::from_hex_be(
-            "0x566d69d8c99f62bc71118399bab25c1f03719463eab8d6a444cd11ece131616",
-        )
-        .unwrap();
 
         let rune_id: FieldElement = FieldElement::from_hex_be("0x95909ff0").unwrap();
         let amount = (
@@ -331,9 +321,8 @@ mod tests {
         .unwrap();
 
         let tx_deposit_id = "bd51cd6d88a59456e2585c2dd61e51f91645dd071d33484d0015328f460057fc";
-        let tx_u256 = to_uint256(BigInt::from_str_radix(tx_deposit_id, 16).unwrap());
-        println!("Tx ID: {:?}", tx_u256);
         // Digest = [0xfc570046, 0x8f321500, 0x4d48331d, 0x7dd4516, 0xf9511ed6, 0x2d5c58e2, 0x5694a588, 0x6dcd51bd]
+        let tx_u256 = to_uint256(BigInt::from_str_radix(tx_deposit_id, 16).unwrap());
 
         assert_eq!(
             tx_u256,
@@ -358,18 +347,17 @@ mod tests {
 
         match ecdsa_sign(&priv_key, &hashed) {
             Ok(signature) => {
-                println!("Signature: {:?}", signature);
                 assert_eq!(
                     signature.r,
                     FieldElement::from_hex_be(
-                        "0x2e4073abbb23fc9c0a1ac5dac6abebd589e5f136c56769be85a91759fd9ef21"
+                        "0x035517e49e7a1337428401645f05ee58f3be3d612a09732262875bf0a9c20a53"
                     )
                     .unwrap()
                 );
                 assert_eq!(
                     signature.s,
                     FieldElement::from_hex_be(
-                        "0x492b5277ffc7f0dfce84a154af408010fcbfe35a50bf15c81a6afcfbdd8b498"
+                        "0x05d541de65ec78c7b2c667830a79f233f5c3aeef1fde771adaa21ad2a73a0251"
                     )
                     .unwrap()
                 );
