@@ -213,11 +213,11 @@ pub async fn claim_deposit_data(
 
     // Compute signature of (rune_id, rune_amount, target_addr, deposit_tx_id)
     let hashed = pedersen_hash(
-        &rune_id,
         &pedersen_hash(
-            &amount_felt.0,
-            &pedersen_hash(&body.starknet_addr.felt, &tx_id_felt.0),
+            &pedersen_hash(&rune_id, &amount_felt.0),
+            &body.starknet_addr.felt,
         ),
+        &tx_id_felt.0,
     );
     println!("Rune ID: {:?}", rune_id);
     println!("Amount: {:?}", amount_felt.0);
@@ -308,40 +308,49 @@ mod tests {
         crypto::{ecdsa_sign, pedersen_hash},
         types::FieldElement,
     };
-    use starknet_crypto::get_public_key;
 
     use crate::utils::starknet::to_uint256;
 
     #[test]
     fn test_generate_signature() {
         let priv_key = FieldElement::from_hex_be("0x123").unwrap();
-        let pub_key = get_public_key(&priv_key);
-        println!("Public key: {:?}", pub_key);
+        let pub_key = FieldElement::from_hex_be(
+            "0x566d69d8c99f62bc71118399bab25c1f03719463eab8d6a444cd11ece131616",
+        )
+        .unwrap();
 
-        let rune_id: FieldElement = FieldElement::from_hex_be("0x0000000000000000000000000000000000000000000000000000000095909ff0").unwrap();
-        let amount = (FieldElement::from_hex_be("0x0000000000000000000000000000000000000000000000000000000000116520").unwrap(), FieldElement::ZERO);
-        let addr = FieldElement::from_hex_be("0x0403c80a49f16ed8ecf751f4b3ad62cc8f85ebeb2d40dc3b4377a089b438995d").unwrap();
+        let rune_id: FieldElement = FieldElement::from_hex_be("0x95909ff0").unwrap();
+        let amount = (
+            FieldElement::from_hex_be("0x7a120").unwrap(),
+            FieldElement::ZERO,
+        );
+        let addr = FieldElement::from_hex_be(
+            "0x403c80a49f16ed8ecf751f4b3ad62cc8f85ebeb2d40dc3b4377a089b438995d",
+        )
+        .unwrap();
 
-        let tx_deposit_id = "a8d6ed49c8177545d81e1aee2fabb8d75bc07ae0cf0f469d165b2ca505d5e117";
+        let tx_deposit_id = "bd51cd6d88a59456e2585c2dd61e51f91645dd071d33484d0015328f460057fc";
         let tx_u256 = to_uint256(BigInt::from_str_radix(tx_deposit_id, 16).unwrap());
         println!("Tx ID: {:?}", tx_u256);
-        
+        // Digest = [0xfc570046, 0x8f321500, 0x4d48331d, 0x7dd4516, 0xf9511ed6, 0x2d5c58e2, 0x5694a588, 0x6dcd51bd]
+
         assert_eq!(
-            tx_u256.0,
-            FieldElement::from_hex_be("0x000000000000000000000000000000005bc07ae0cf0f469d165b2ca505d5e117").unwrap());
+            tx_u256,
+            (
+                FieldElement::from_dec_str("29605767366663658861677795006692218876").unwrap(),
+                FieldElement::from_dec_str("251648833821019018272888897087823827449").unwrap()
+            )
+        );
 
         let hashed = pedersen_hash(
-            &rune_id,
-            &pedersen_hash(
-                &amount.0,
-                &pedersen_hash(&addr, &tx_u256.0),
-            ),
+            &pedersen_hash(&pedersen_hash(&rune_id, &amount.0), &addr),
+            &tx_u256.0,
         );
 
         assert_eq!(
             hashed,
-            FieldElement::from_hex_be(
-                "0x051536b767547e994c60ff7a5d5e15e0cd4a2c259a68f7e49bff6f46aea3ed78"
+            FieldElement::from_dec_str(
+                "1356414087408964637607039731483801640134638362415144195139607419676485543996"
             )
             .unwrap()
         );
