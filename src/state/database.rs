@@ -5,7 +5,9 @@ use mongodb::{
 
 use crate::{
     models::{
-        deposit::{DepositAddressDocument, DepositDocument},
+        deposit::{
+            BlacklistedDeposit, DepositAddressDocument, DepositClaimedTxDocument, DepositDocument,
+        },
         runes::SupportedRuneDocument,
     },
     utils::Address,
@@ -39,11 +41,18 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         rune_id: String,
     ) -> Result<SupportedRuneDocument, DatabaseError>;
+    #[allow(dead_code)]
     async fn is_blacklisted(
         &self,
         session: &mut ClientSession,
         tx_id: String,
     ) -> Result<(), DatabaseError>;
+    async fn was_claimed(
+        &self,
+        session: &mut ClientSession,
+        tx_id: String,
+        vout: Option<u64>,
+    ) -> Result<String, DatabaseError>;
     async fn store_deposit(
         &self,
         session: &mut ClientSession,
@@ -157,7 +166,7 @@ impl DatabaseExt for Database {
         tx_id: String,
     ) -> Result<(), DatabaseError> {
         let result = self
-            .collection::<SupportedRuneDocument>("blacklisted_deposits")
+            .collection::<BlacklistedDeposit>("blacklisted_deposits")
             .find_one(doc! {"tx_id": tx_id})
             .session(&mut *session)
             .await
@@ -165,6 +174,29 @@ impl DatabaseExt for Database {
 
         match result {
             Some(_) => Ok(()),
+            None => Err(DatabaseError::NotFound),
+        }
+    }
+
+    async fn was_claimed(
+        &self,
+        session: &mut ClientSession,
+        tx_id: String,
+        vout: Option<u64>,
+    ) -> Result<String, DatabaseError> {
+        let identifier = match vout {
+            Some(vout) => format!("{}:{}", tx_id, vout),
+            None => return Err(DatabaseError::Other("vout is None".to_string())),
+        };
+        let result = self
+            .collection::<DepositClaimedTxDocument>("deposit_claim_txs")
+            .find_one(doc! {"identifier": identifier, "_cursor.to": null })
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        match result {
+            Some(claim_tx) => Ok(claim_tx.transaction_hash),
             None => Err(DatabaseError::NotFound),
         }
     }
