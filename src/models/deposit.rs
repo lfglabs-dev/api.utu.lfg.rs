@@ -56,6 +56,7 @@ pub struct DepositClaimedTxDocument {
     pub rune_id: String,
     pub amount: String,
     pub caller_address: String,
+    pub target_address: String,
     pub transaction_hash: String,
     pub _cursor: Cursor,
 }
