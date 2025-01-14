@@ -255,6 +255,7 @@ pub async fn claim_deposit_data(
                 vout,
                 rune: tx_data.rune,
                 amount,
+                bitcoin_deposit_addr,
             },
         )
         .await

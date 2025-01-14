@@ -15,6 +15,7 @@ pub struct DepositDocument {
     pub vout: u32,
     pub rune: Rune,
     pub amount: String,
+    pub bitcoin_deposit_addr: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
