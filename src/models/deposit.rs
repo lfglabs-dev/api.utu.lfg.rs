@@ -51,7 +51,7 @@ pub struct BlacklistedDeposit {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DepositClaimedTxDocument {
+pub struct DepositClaimTxDocument {
     pub identifier: String,
     pub rune_id: String,
     pub amount: String,

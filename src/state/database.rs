@@ -6,7 +6,7 @@ use mongodb::{
 use crate::{
     models::{
         deposit::{
-            BlacklistedDeposit, DepositAddressDocument, DepositClaimedTxDocument, DepositDocument,
+            BlacklistedDeposit, DepositAddressDocument, DepositClaimTxDocument, DepositDocument,
         },
         runes::SupportedRuneDocument,
     },
@@ -189,7 +189,7 @@ impl DatabaseExt for Database {
             None => return Err(DatabaseError::Other("vout is None".to_string())),
         };
         let result = self
-            .collection::<DepositClaimedTxDocument>("deposit_claim_txs")
+            .collection::<DepositClaimTxDocument>("deposit_claim_txs")
             .find_one(doc! {"identifier": identifier, "_cursor.to": null })
             .session(&mut *session)
             .await
