@@ -34,6 +34,7 @@ pub struct BitcoinAddresses {
 pub struct DepositActivityDetails {
     pub rune: SupportedRuneDocument,
     pub tx: RuneActivity,
+    pub claim_tx: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -42,4 +43,26 @@ pub enum DepositStatus {
     Pending,
     Confirmed,
     Claimed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlacklistedDeposit {
+    pub tx_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DepositClaimTxDocument {
+    pub identifier: String,
+    pub rune_id: String,
+    pub amount: String,
+    pub caller_address: String,
+    pub target_address: String,
+    pub transaction_hash: String,
+    pub _cursor: Cursor,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Cursor {
+    pub to: Option<i64>,
+    pub from: Option<i64>,
 }

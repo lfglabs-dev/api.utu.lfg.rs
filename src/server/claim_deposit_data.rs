@@ -283,6 +283,7 @@ pub async fn claim_deposit_data(
         amount: amount_felt,
         target_addr: body.starknet_addr,
         tx_id: body.tx_id.clone(),
+        tx_vout: vout,
         sig: Signature {
             r: signature.r,
             s: signature.s,

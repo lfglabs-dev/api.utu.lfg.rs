@@ -70,6 +70,7 @@ pub async fn get_activity_bitcoin_addr(
                         response.push(DepositActivityDetails {
                             rune: rune.clone(),
                             tx: tx.clone(),
+                            claim_tx: None,
                         });
                     }
 
@@ -89,6 +90,7 @@ pub async fn get_activity_bitcoin_addr(
                             response.push(DepositActivityDetails {
                                 rune: rune.clone(),
                                 tx,
+                                claim_tx: None,
                             });
                         }
                     }
@@ -117,16 +119,23 @@ pub async fn filter_deposits(
         let res = state.bitcoin_provider.get_block_header_info(&block_hash)?;
         if res.confirmations >= *MIN_CONFIRMATIONS {
             // update deposit status to confirmed or claimed
-            if state
+            if let Ok(transaction_hash) = state
                 .db
-                .is_blacklisted(session, deposit.tx.location.tx_id.clone())
+                .was_claimed(
+                    session,
+                    deposit.tx.location.tx_id.clone(),
+                    deposit.tx.location.vout,
+                )
                 .await
-                .is_ok()
             {
                 filtered_deposits
                     .entry(DepositStatus::Claimed)
                     .or_default()
-                    .push(deposit);
+                    .push(DepositActivityDetails {
+                        tx: deposit.tx,
+                        rune: deposit.rune,
+                        claim_tx: Some(transaction_hash),
+                    });
             } else {
                 filtered_deposits
                     .entry(DepositStatus::Confirmed)
