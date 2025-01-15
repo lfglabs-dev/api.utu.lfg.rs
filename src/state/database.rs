@@ -207,7 +207,24 @@ impl DatabaseExt for Database {
         deposit: DepositDocument,
     ) -> Result<(), DatabaseError> {
         self.collection::<DepositDocument>("claimed_runes_deposits")
-            .insert_one(deposit)
+            .update_one(
+                doc! {"identifier": deposit.identifier },
+                doc! {
+                    "$set":
+                    {
+                        "tx_id": &deposit.tx_id,
+                        "vout": deposit.vout,
+                        "rune": {
+                            "id": &deposit.rune.id,
+                            "name": &deposit.rune.name,
+                            "spaced_name": &deposit.rune.spaced_name,
+                        },
+                        "amount": &deposit.amount,
+                        "bitcoin_deposit_addr": &deposit.bitcoin_deposit_addr,
+                    }
+                },
+            )
+            .upsert(true)
             .session(&mut *session)
             .await
             .map_err(DatabaseError::QueryFailed)?;
