@@ -213,11 +213,11 @@ pub async fn claim_deposit_data(
 
     // Compute signature of (rune_id, rune_amount, target_addr, deposit_tx_id)
     let hashed = pedersen_hash(
-        &rune_id,
         &pedersen_hash(
-            &amount_felt.0,
-            &pedersen_hash(&body.starknet_addr.felt, &tx_id_felt.0),
+            &pedersen_hash(&rune_id, &amount_felt.0),
+            &body.starknet_addr.felt,
         ),
+        &tx_id_felt.0,
     );
     let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
         Ok(signature) => signature,
@@ -303,22 +303,34 @@ mod tests {
         crypto::{ecdsa_sign, pedersen_hash},
         types::FieldElement,
     };
-    use starknet_crypto::get_public_key;
 
     use crate::utils::starknet::to_uint256;
 
     #[test]
     fn test_generate_signature() {
         let priv_key = FieldElement::from_hex_be("0x123").unwrap();
-        let pub_key = get_public_key(&priv_key);
-        println!("Public key: {:?}", pub_key);
 
-        let rune_id: FieldElement = FieldElement::from_dec_str("97").unwrap();
-        let amount = (FieldElement::from(2500_u128), FieldElement::ZERO);
-        let addr = FieldElement::from(504447201841_u128);
+        let rune_id: FieldElement = FieldElement::from_hex_be("0x95909ff0").unwrap();
+        let amount = (
+            FieldElement::from_hex_be("0x7a120").unwrap(),
+            FieldElement::ZERO,
+        );
+        let addr = FieldElement::from_hex_be(
+            "0x403c80a49f16ed8ecf751f4b3ad62cc8f85ebeb2d40dc3b4377a089b438995d",
+        )
+        .unwrap();
 
-        let tx_deposit_id = "a795ede3bec4b9095eb207bff4abacdbcdd1de065788d4ffb53b1ea3fe5d67fb";
+        let tx_deposit_id = "bd51cd6d88a59456e2585c2dd61e51f91645dd071d33484d0015328f460057fc";
+        // Digest = [0xfc570046, 0x8f321500, 0x4d48331d, 0x7dd4516, 0xf9511ed6, 0x2d5c58e2, 0x5694a588, 0x6dcd51bd]
         let tx_u256 = to_uint256(BigInt::from_str_radix(tx_deposit_id, 16).unwrap());
+
+        assert_eq!(
+            tx_u256,
+            (
+                FieldElement::from_dec_str("29605767366663658861677795006692218876").unwrap(),
+                FieldElement::from_dec_str("251648833821019018272888897087823827449").unwrap()
+            )
+        );
 
         let hashed = pedersen_hash(
             &pedersen_hash(&pedersen_hash(&rune_id, &amount.0), &addr),
@@ -327,8 +339,8 @@ mod tests {
 
         assert_eq!(
             hashed,
-            FieldElement::from_hex_be(
-                "0x05b83a0441dd5eb9409a4f4bb3775fc7d420aed6abb307d11e59668acc192c3d"
+            FieldElement::from_dec_str(
+                "1356414087408964637607039731483801640134638362415144195139607419676485543996"
             )
             .unwrap()
         );
@@ -338,14 +350,14 @@ mod tests {
                 assert_eq!(
                     signature.r,
                     FieldElement::from_hex_be(
-                        "0x00823dd95547161bb6612384e59b9c041b97fe2c0c02bf521a0b8d8b449a05eb"
+                        "0x035517e49e7a1337428401645f05ee58f3be3d612a09732262875bf0a9c20a53"
                     )
                     .unwrap()
                 );
                 assert_eq!(
                     signature.s,
                     FieldElement::from_hex_be(
-                        "0x06367b23138364e35314840bd0fd826626d1e9283e303d263655edee80e27487"
+                        "0x05d541de65ec78c7b2c667830a79f233f5c3aeef1fde771adaa21ad2a73a0251"
                     )
                     .unwrap()
                 );
