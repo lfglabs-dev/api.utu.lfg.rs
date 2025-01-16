@@ -58,6 +58,11 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         deposit: DepositDocument,
     ) -> Result<(), DatabaseError>;
+    async fn get_deposit_claim_txhash(
+        &self,
+        session: &mut ClientSession,
+        btc_txid: String,
+    ) -> Result<String, DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -230,5 +235,26 @@ impl DatabaseExt for Database {
             .map_err(DatabaseError::QueryFailed)?;
 
         Ok(())
+    }
+
+    async fn get_deposit_claim_txhash(
+        &self,
+        session: &mut ClientSession,
+        btc_txid: String,
+    ) -> Result<String, DatabaseError> {
+        let result = self
+            .collection::<DepositClaimTxDocument>("deposit_claim_txs")
+            .find_one(doc! {"identifier": {
+                "$regex": format!(r"^{}:[0-9]+$", btc_txid),
+                "$options": "i"
+            }, "_cursor.to": null })
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        match result {
+            Some(claim_tx) => Ok(claim_tx.transaction_hash),
+            None => Err(DatabaseError::NotFound),
+        }
     }
 }
