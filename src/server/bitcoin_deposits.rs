@@ -53,7 +53,6 @@ pub async fn bitcoin_deposits<B>(
         }
     };
 
-    // For now we return the arguments for the claim_rune tx : rune_id: u8, rune_amount: u256, target_addr: ContractAddress
     let deposits = match state
         .db
         .get_bitcoin_deposits(&mut session, starknet_addresses)
