@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+
 use mongodb::{
-    bson::{doc, DateTime},
+    bson::{doc, from_document, DateTime},
     ClientSession, Database,
 };
 
 use crate::{
     models::{
         deposit::{
-            BlacklistedDeposit, DepositAddressDocument, DepositClaimTxDocument, DepositDocument,
+            BitcoinDepositEntry, BitcoinDepositQuery, BlacklistedDeposit, DepositAddressDocument,
+            DepositClaimTxDocument, DepositDocument,
         },
         runes::SupportedRuneDocument,
     },
@@ -58,6 +61,11 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         deposit: DepositDocument,
     ) -> Result<(), DatabaseError>;
+    async fn get_bitcoin_deposits(
+        &self,
+        session: &mut ClientSession,
+        starknet_receiving_addresses: Vec<String>,
+    ) -> Result<HashMap<String, Vec<BitcoinDepositEntry>>, DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -230,5 +238,118 @@ impl DatabaseExt for Database {
             .map_err(DatabaseError::QueryFailed)?;
 
         Ok(())
+    }
+
+    async fn get_bitcoin_deposits(
+        &self,
+        session: &mut ClientSession,
+        starknet_receiving_addresses: Vec<String>,
+    ) -> Result<HashMap<String, Vec<BitcoinDepositEntry>>, DatabaseError> {
+        let pipeline = vec![
+            doc! {
+                "$match": {
+                    "starknet_address": { "$in": starknet_receiving_addresses }
+                }
+            },
+            doc! {
+                "$lookup": {
+                    "from": "claimed_runes_deposits",
+                    "localField": "bitcoin_deposit_address",
+                    "foreignField": "bitcoin_deposit_addr",
+                    "as": "claimed_deposits"
+                }
+            },
+            doc! {
+                "$unwind": {
+                    "path": "$claimed_deposits",
+                    "preserveNullAndEmptyArrays": true
+                }
+            },
+            // Add identifier as tx_id:vout for the next lookup
+            doc! {
+                "$addFields": {
+                    "claimed_deposits": {
+                        "$cond": {
+                            "if": { "$not": ["$claimed_deposits"] },
+                            "then": null,
+                            "else": {
+                                "$mergeObjects": [
+                                    "$claimed_deposits", // Retain all original fields
+                                    {
+                                        "identifier": {
+                                            "$concat": [
+                                                "$claimed_deposits.tx_id",
+                                                ":",
+                                                { "$toString": "$claimed_deposits.vout" }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            },
+                        }
+                    }
+                }
+            },
+            doc! {
+                "$lookup": {
+                    "from": "deposit_claim_txs",
+                    "let": { "identifier": "$claimed_deposits.identifier" },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        { "$eq": ["$identifier", "$$identifier"] },
+                                        { "$eq": ["$_cursor.to", null] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "deposit_claim_txs"
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "starknet_address": 1,
+                    "bitcoin_deposit_address": 1,
+                    "claimed_deposits": 1,
+                    "deposit_claim_txs": 1
+                }
+            },
+        ];
+
+        let mut cursor = self
+            .collection::<DepositDocument>("deposit_addresses")
+            .aggregate(pipeline)
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        let mut results: HashMap<String, Vec<BitcoinDepositEntry>> = HashMap::new();
+        while let Some(doc) = cursor.next(&mut *session).await {
+            let data: BitcoinDepositQuery = from_document(doc.map_err(DatabaseError::QueryFailed)?)
+                .map_err(DatabaseError::DeserializationFailed)?;
+
+            results.entry(data.starknet_address.clone()).or_default();
+
+            if data.claimed_deposits.is_some() {
+                let btc_txid = data.claimed_deposits.unwrap().tx_id;
+                let sn_txhash = data
+                    .deposit_claim_txs
+                    .first()
+                    .map(|claim_tx| claim_tx.transaction_hash.clone());
+                results
+                    .entry(data.starknet_address)
+                    .or_default()
+                    .push(BitcoinDepositEntry {
+                        btc_txid,
+                        sn_txhash,
+                    });
+            }
+        }
+
+        Ok(results)
     }
 }
