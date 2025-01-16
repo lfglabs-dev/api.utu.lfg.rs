@@ -67,3 +67,10 @@ pub struct Cursor {
     pub to: Option<i64>,
     pub from: Option<i64>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DepositClaimTxHashDocument {
+    pub tx_id: String,
+    pub vout: u64,
+    pub matched_tx: DepositClaimTxDocument,
+}

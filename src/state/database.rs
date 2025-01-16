@@ -1,12 +1,13 @@
 use mongodb::{
-    bson::{doc, DateTime},
+    bson::{doc, from_document, DateTime},
     ClientSession, Database,
 };
 
 use crate::{
     models::{
         deposit::{
-            BlacklistedDeposit, DepositAddressDocument, DepositClaimTxDocument, DepositDocument,
+            BlacklistedDeposit, DepositAddressDocument, DepositClaimTxDocument,
+            DepositClaimTxHashDocument, DepositDocument,
         },
         runes::SupportedRuneDocument,
     },
@@ -242,19 +243,61 @@ impl DatabaseExt for Database {
         session: &mut ClientSession,
         btc_txid: String,
     ) -> Result<String, DatabaseError> {
-        let result = self
-            .collection::<DepositClaimTxDocument>("deposit_claim_txs")
-            .find_one(doc! {"identifier": {
-                "$regex": format!(r"^{}:[0-9]+$", btc_txid),
-                "$options": "i"
-            }, "_cursor.to": null })
+        let pipeline = vec![
+            doc! {
+                "$match": {
+                    "tx_id": btc_txid
+                }
+            },
+            doc! {
+                "$lookup": {
+                    "from": "deposit_claim_txs",
+                    "let": { "vout_value": "$vout", "tx_id": "$tx_id" },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        { "$eq": ["$identifier", { "$concat": ["$$tx_id", ":", { "$toString": "$$vout_value" }] }] },
+                                        { "$eq": ["$_cursor.to", null] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "matched_txs"
+                }
+            },
+            doc! {
+                "$unwind": {
+                    "path": "$matched_txs",
+                    "preserveNullAndEmptyArrays": true
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "tx_id": 1,
+                    "vout": 1,
+                    "matched_tx": "$matched_txs"
+                }
+            },
+        ];
+
+        let mut cursor = self
+            .collection::<DepositDocument>("claimed_runes_deposits")
+            .aggregate(pipeline)
             .session(&mut *session)
             .await
             .map_err(DatabaseError::QueryFailed)?;
 
-        match result {
-            Some(claim_tx) => Ok(claim_tx.transaction_hash),
-            None => Err(DatabaseError::NotFound),
+        if let Some(doc) = cursor.next(&mut *session).await {
+            let data: DepositClaimTxHashDocument =
+                from_document(doc.map_err(DatabaseError::QueryFailed)?)
+                    .map_err(DatabaseError::DeserializationFailed)?;
+            Ok(data.matched_tx.transaction_hash)
+        } else {
+            Err(DatabaseError::NotFound)
         }
     }
 }
