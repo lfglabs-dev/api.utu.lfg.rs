@@ -9,7 +9,7 @@ use crate::{
     models::{
         deposit::{
             BitcoinDepositEntry, BitcoinDepositQuery, BlacklistedDeposit, DepositAddressDocument,
-            DepositClaimTxDocument, DepositDocument,
+            DepositClaimTxDocument, DepositClaimTxHashDocument, DepositDocument,
         },
         runes::SupportedRuneDocument,
     },
@@ -66,6 +66,11 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         starknet_receiving_addresses: Vec<String>,
     ) -> Result<HashMap<String, Vec<BitcoinDepositEntry>>, DatabaseError>;
+    async fn get_deposit_claim_txhash(
+        &self,
+        session: &mut ClientSession,
+        btc_txid: String,
+    ) -> Result<String, DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -240,6 +245,69 @@ impl DatabaseExt for Database {
         Ok(())
     }
 
+    async fn get_deposit_claim_txhash(
+        &self,
+        session: &mut ClientSession,
+        btc_txid: String,
+    ) -> Result<String, DatabaseError> {
+        let pipeline = vec![
+            doc! {
+                "$match": {
+                    "tx_id": btc_txid
+                }
+            },
+            doc! {
+                "$lookup": {
+                    "from": "deposit_claim_txs",
+                    "let": { "vout_value": "$vout", "tx_id": "$tx_id" },
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$and": [
+                                        { "$eq": ["$identifier", { "$concat": ["$$tx_id", ":", { "$toString": "$$vout_value" }] }] },
+                                        { "$eq": ["$_cursor.to", null] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "as": "matched_txs"
+                }
+            },
+            doc! {
+                "$unwind": {
+                    "path": "$matched_txs",
+                    "preserveNullAndEmptyArrays": true
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "tx_id": 1,
+                    "vout": 1,
+                    "matched_tx": "$matched_txs"
+                }
+            },
+        ];
+
+        let mut cursor = self
+            .collection::<DepositDocument>("claimed_runes_deposits")
+            .aggregate(pipeline)
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        if let Some(doc) = cursor.next(&mut *session).await {
+            let data: DepositClaimTxHashDocument =
+                from_document(doc.map_err(DatabaseError::QueryFailed)?)
+                    .map_err(DatabaseError::DeserializationFailed)?;
+            Ok(data.matched_tx.transaction_hash)
+        } else {
+            Err(DatabaseError::NotFound)
+        }
+    }
+
     async fn get_bitcoin_deposits(
         &self,
         session: &mut ClientSession,
@@ -319,7 +387,6 @@ impl DatabaseExt for Database {
                 }
             },
         ];
-
         let mut cursor = self
             .collection::<DepositDocument>("deposit_addresses")
             .aggregate(pipeline)
