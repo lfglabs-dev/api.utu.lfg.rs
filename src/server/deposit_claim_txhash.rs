@@ -24,15 +24,6 @@ pub async fn deposit_claim_txhash(
     Query(query): Query<DepositClaimTxhashQuery>,
 ) -> impl IntoResponse {
     let mut session = try_start_session!(state);
-    if let Err(err) = session.start_transaction().await {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::new(
-                Status::InternalServerError,
-                format!("Database error: {:?}", err),
-            )),
-        );
-    };
 
     let sn_txhash = match state
         .db
