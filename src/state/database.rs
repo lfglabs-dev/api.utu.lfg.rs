@@ -71,6 +71,11 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         btc_txid: String,
     ) -> Result<String, DatabaseError>;
+    async fn get_starknet_addrs(
+        &self,
+        session: &mut ClientSession,
+        bitcoin_addresses: Vec<String>,
+    ) -> Result<HashMap<String, Option<String>>, DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -415,6 +420,32 @@ impl DatabaseExt for Database {
                         sn_txhash,
                     });
             }
+        }
+
+        Ok(results)
+    }
+
+    async fn get_starknet_addrs(
+        &self,
+        session: &mut ClientSession,
+        bitcoin_addresses: Vec<String>,
+    ) -> Result<HashMap<String, Option<String>>, DatabaseError> {
+        let mut cursor = self
+            .collection::<DepositAddressDocument>("deposit_addresses")
+            .find(doc! {"bitcoin_deposit_address": { "$in": bitcoin_addresses.clone() }})
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        let mut results: HashMap<String, Option<String>> = HashMap::new();
+
+        // Initialize results with nulls for all bitcoin_addresses
+        for addr in &bitcoin_addresses {
+            results.insert(addr.clone(), None);
+        }
+        while let Some(doc) = cursor.next(&mut *session).await {
+            let data = doc.map_err(DatabaseError::QueryFailed)?;
+            results.insert(data.bitcoin_deposit_address, Some(data.starknet_address));
         }
 
         Ok(results)
