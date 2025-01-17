@@ -30,7 +30,7 @@ pub async fn bitcoin_withdrawals(
 
     let withdrawals = match state
         .db
-        .get_withdrawals_from_btc_addr(
+        .get_bitcoin_withdrawals(
             &mut session,
             query.bitcoin_receiving_address,
             query.starknet_sending_address,
@@ -57,7 +57,6 @@ pub async fn bitcoin_withdrawals(
         },
     };
 
-    println!("withdrawals: {:?}", withdrawals);
     let mut result: Vec<BitcoinWithdrawalResponse> = Vec::new();
     for withdrawal in withdrawals {
         if withdrawal.matched_submissions.is_none() && withdrawal.rejected_status.is_none() {

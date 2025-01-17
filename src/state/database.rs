@@ -77,7 +77,7 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         bitcoin_addresses: Vec<String>,
     ) -> Result<HashMap<String, Option<String>>, DatabaseError>;
-    async fn get_withdrawals_from_btc_addr(
+    async fn get_bitcoin_withdrawals(
         &self,
         session: &mut ClientSession,
         bitcoin_receiving_address: Option<String>,
@@ -458,7 +458,7 @@ impl DatabaseExt for Database {
         Ok(results)
     }
 
-    async fn get_withdrawals_from_btc_addr(
+    async fn get_bitcoin_withdrawals(
         &self,
         session: &mut ClientSession,
         bitcoin_receiving_address: Option<String>,
