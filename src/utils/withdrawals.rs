@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bitcoincore_rpc::RpcApi;
 
 use crate::{
-    models::withdrawals::{BitcoinWithdrawalResponse, BitcoinWithdrawalStatus},
+    models::withdrawal::{BitcoinWithdrawalResponse, BitcoinWithdrawalStatus},
     state::AppState,
 };
 

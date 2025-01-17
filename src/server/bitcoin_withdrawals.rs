@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::withdrawals::{BitcoinWithdrawalResponse, BitcoinWithdrawalStatus};
+use crate::models::withdrawal::{BitcoinWithdrawalResponse, BitcoinWithdrawalStatus};
 use crate::state::database::DatabaseExt;
 use crate::state::{AppState, DatabaseError};
 use crate::try_start_session;
