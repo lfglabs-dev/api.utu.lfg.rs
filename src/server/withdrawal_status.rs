@@ -100,7 +100,7 @@ pub async fn withdrawal_status(
                 StatusCode::ACCEPTED,
                 Json(ApiResponse::new(
                     Status::Success,
-                    json!({ "status": "completed", "btc_txid": tx.txid }),
+                    json!({ "status": "submitted", "btc_txid": tx.txid }),
                 )),
             );
         } else {

@@ -82,6 +82,12 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         sn_txhash: Address,
     ) -> Result<WithdrawalStatusResponse, DatabaseError>;
+    async fn get_bitcoin_withdrawals(
+        &self,
+        session: &mut ClientSession,
+        bitcoin_receiving_address: Option<String>,
+        starknet_sending_address: Option<String>,
+    ) -> Result<Vec<WithdrawalStatusResponse>, DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -487,6 +493,7 @@ impl DatabaseExt for Database {
                 "$project": {
                     "_id": 0,
                     "identifier": 1,
+                    "transaction_hash": 1,
                     "rejected_status": 1,
                     "matched_submissions": 1
                 }
@@ -506,5 +513,64 @@ impl DatabaseExt for Database {
             return Ok(data);
         }
         Err(DatabaseError::NotFound)
+    }
+
+    async fn get_bitcoin_withdrawals(
+        &self,
+        session: &mut ClientSession,
+        bitcoin_receiving_address: Option<String>,
+        starknet_sending_address: Option<String>,
+    ) -> Result<Vec<WithdrawalStatusResponse>, DatabaseError> {
+        let mut match_stage = doc! {
+            "_cursor.to": { "$eq": null }
+        };
+
+        if let Some(address) = bitcoin_receiving_address {
+            match_stage.insert("target_bitcoin_address", address);
+        } else if let Some(address) = starknet_sending_address {
+            match_stage.insert("caller_address", address);
+        }
+
+        let pipeline = vec![
+            doc! { "$match": match_stage },
+            doc! {
+                "$lookup": {
+                    "from": "withdrawal_submissions",
+                    "localField": "identifier",
+                    "foreignField": "identifier",
+                    "as": "matched_submissions"
+                }
+            },
+            doc! {
+                "$unwind": {
+                    "path": "$matched_submissions",
+                    "preserveNullAndEmptyArrays": true
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "identifier": 1,
+                    "transaction_hash": 1,
+                    "rejected_status": 1,
+                    "matched_submissions": 1
+                }
+            },
+        ];
+        let mut cursor = self
+            .collection::<WithdrawalRequest>("withdrawal_requests")
+            .aggregate(pipeline)
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        let mut res: Vec<WithdrawalStatusResponse> = Vec::new();
+        if let Some(doc) = cursor.next(&mut *session).await {
+            let data: WithdrawalStatusResponse =
+                from_document(doc.map_err(DatabaseError::QueryFailed)?)
+                    .map_err(DatabaseError::DeserializationFailed)?;
+            res.push(data);
+        }
+        Ok(res)
     }
 }
