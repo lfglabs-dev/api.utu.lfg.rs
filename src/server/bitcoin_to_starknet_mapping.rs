@@ -26,15 +26,6 @@ pub async fn bitcoin_to_starknet_mapping<B>(
     request: Request<B>,
 ) -> impl IntoResponse {
     let mut session = try_start_session!(state);
-    if let Err(err) = session.start_transaction().await {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::new(
-                Status::InternalServerError,
-                format!("Database error: {:?}", err),
-            )),
-        );
-    };
 
     let query_string = request.uri().query().unwrap_or_default();
     let params: HashMap<String, Vec<String>> = url::form_urlencoded::parse(query_string.as_bytes())
