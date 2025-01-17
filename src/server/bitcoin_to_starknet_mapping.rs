@@ -11,14 +11,8 @@ use axum::Json;
 use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
 
 use super::responses::{ApiResponse, Status};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BitcoinStarknetMappingQuery {
-    bitcoin_addresses: Vec<String>,
-}
 
 #[route(get, "/bitcoin_to_starknet_mapping")]
 pub async fn bitcoin_to_starknet_mapping<B>(
