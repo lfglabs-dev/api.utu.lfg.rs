@@ -69,6 +69,20 @@ pub struct Cursor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BitcoinDepositQuery {
+    pub starknet_address: String,
+    pub bitcoin_deposit_address: String,
+    pub claimed_deposits: Option<DepositDocument>,
+    pub deposit_claim_txs: Vec<DepositClaimTxDocument>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BitcoinDepositEntry {
+    pub btc_txid: String,
+    pub sn_txhash: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DepositClaimTxHashDocument {
     pub tx_id: String,
     pub vout: u64,
