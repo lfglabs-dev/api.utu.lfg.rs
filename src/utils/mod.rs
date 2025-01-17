@@ -9,6 +9,7 @@ pub mod deposit_activity;
 pub mod macros;
 pub mod runes;
 pub mod starknet;
+pub mod withdrawals;
 
 pub_struct!(Debug, Clone, Copy, PartialEq, Eq; Address {
     felt: FieldElement
