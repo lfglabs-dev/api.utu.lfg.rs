@@ -81,10 +81,3 @@ pub struct BitcoinDepositEntry {
     pub btc_txid: String,
     pub sn_txhash: Option<String>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DepositClaimTxHashDocument {
-    pub tx_id: String,
-    pub vout: u64,
-    pub matched_tx: DepositClaimTxDocument,
-}
