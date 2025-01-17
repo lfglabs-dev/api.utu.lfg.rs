@@ -1,5 +1,5 @@
 use mongodb::{
-    bson::{doc, DateTime},
+    bson::{doc, from_document, DateTime},
     ClientSession, Database,
 };
 
@@ -9,6 +9,7 @@ use crate::{
             BlacklistedDeposit, DepositAddressDocument, DepositClaimTxDocument, DepositDocument,
         },
         runes::SupportedRuneDocument,
+        withdrawal::{WithdrawalRequest, WithdrawalStatusResponse},
     },
     utils::Address,
 };
@@ -58,6 +59,11 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         deposit: DepositDocument,
     ) -> Result<(), DatabaseError>;
+    async fn get_withdrawal_status(
+        &self,
+        session: &mut ClientSession,
+        sn_txhash: Address,
+    ) -> Result<WithdrawalStatusResponse, DatabaseError>;
 }
 
 impl DatabaseExt for Database {
@@ -230,5 +236,56 @@ impl DatabaseExt for Database {
             .map_err(DatabaseError::QueryFailed)?;
 
         Ok(())
+    }
+
+    async fn get_withdrawal_status(
+        &self,
+        session: &mut ClientSession,
+        sn_txhash: Address,
+    ) -> Result<WithdrawalStatusResponse, DatabaseError> {
+        let pipeline = vec![
+            doc! {
+                "$match": {
+                    "transaction_hash": sn_txhash.to_string(),
+                    "_cursor.to": { "$eq": null }
+                }
+            },
+            doc! {
+                "$lookup": {
+                    "from": "withdrawal_submissions",
+                    "localField": "identifier",
+                    "foreignField": "identifier",
+                    "as": "matched_submissions"
+                }
+            },
+            doc! {
+                "$unwind": {
+                    "path": "$matched_submissions",
+                    "preserveNullAndEmptyArrays": true
+                }
+            },
+            doc! {
+                "$project": {
+                    "_id": 0,
+                    "identifier": 1,
+                    "rejected_status": 1,
+                    "matched_submissions": 1
+                }
+            },
+        ];
+        let mut cursor = self
+            .collection::<WithdrawalRequest>("withdrawal_requests")
+            .aggregate(pipeline)
+            .session(&mut *session)
+            .await
+            .map_err(DatabaseError::QueryFailed)?;
+
+        if let Some(doc) = cursor.next(&mut *session).await {
+            let data: WithdrawalStatusResponse =
+                from_document(doc.map_err(DatabaseError::QueryFailed)?)
+                    .map_err(DatabaseError::DeserializationFailed)?;
+            return Ok(data);
+        }
+        Err(DatabaseError::NotFound)
     }
 }
