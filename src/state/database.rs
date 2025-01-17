@@ -493,6 +493,7 @@ impl DatabaseExt for Database {
                 "$project": {
                     "_id": 0,
                     "identifier": 1,
+                    "transaction_hash": 1,
                     "rejected_status": 1,
                     "matched_submissions": 1
                 }
