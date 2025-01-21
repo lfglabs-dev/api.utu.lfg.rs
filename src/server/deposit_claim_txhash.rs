@@ -15,7 +15,8 @@ use super::responses::{ApiResponse, Status};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DepositClaimTxhashQuery {
-    btc_utxo_id: String,
+    btc_txid: String,
+    btc_txvout: u32,
 }
 
 #[route(get, "/deposit_claim_txhash")]
@@ -27,7 +28,10 @@ pub async fn deposit_claim_txhash(
 
     let sn_txhash = match state
         .db
-        .get_deposit_claim_txhash(&mut session, query.btc_utxo_id)
+        .get_deposit_claim_txhash(
+            &mut session,
+            format!("{}:{}", query.btc_txid, query.btc_txvout),
+        )
         .await
     {
         Ok(sn_txhash) => sn_txhash,
