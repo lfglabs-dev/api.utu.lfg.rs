@@ -374,7 +374,9 @@ impl DatabaseExt for Database {
             results.entry(data.starknet_address.clone()).or_default();
 
             if data.claimed_deposits.is_some() {
-                let btc_txid = data.claimed_deposits.unwrap().tx_id;
+                let claimed_deposits = data.claimed_deposits.unwrap();
+                let btc_txid = claimed_deposits.tx_id;
+                let btc_txvout = claimed_deposits.vout;
                 let sn_txhash = data
                     .deposit_claim_txs
                     .first()
@@ -384,6 +386,7 @@ impl DatabaseExt for Database {
                     .or_default()
                     .push(BitcoinDepositEntry {
                         btc_txid,
+                        btc_txvout,
                         sn_txhash,
                     });
             }

@@ -79,5 +79,6 @@ pub struct BitcoinDepositQuery {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BitcoinDepositEntry {
     pub btc_txid: String,
+    pub btc_txvout: u32,
     pub sn_txhash: Option<String>,
 }
