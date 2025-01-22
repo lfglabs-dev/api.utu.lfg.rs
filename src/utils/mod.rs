@@ -7,6 +7,7 @@ use crate::pub_struct;
 pub mod deposit;
 pub mod deposit_activity;
 pub mod macros;
+pub mod msg_hash;
 pub mod runes;
 pub mod starknet;
 pub mod withdrawals;
