@@ -9,6 +9,7 @@ use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
 use crate::utils::deposit::get_bitcoin_addr_from_starknet_addr;
+use crate::utils::msg_hash::build_claim_data_hash;
 use crate::utils::runes::symbol_as_felt;
 use crate::utils::starknet::{convert_to_bigint, hex_to_uint256, to_uint256};
 use crate::utils::Address;
@@ -19,8 +20,10 @@ use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use starknet::core::crypto::{ecdsa_sign, pedersen_hash, ExtendedSignature};
+use starknet::core::chain_id;
+use starknet::core::crypto::{ecdsa_sign, ExtendedSignature};
 use starknet::core::types::FieldElement;
+use starknet::macros::felt;
 
 use super::responses::{ApiResponse, Status};
 
@@ -29,6 +32,7 @@ lazy_static::lazy_static! {
     .expect("RUNES_BRIDGE_STARKNET_PRIV_KEY must be set")).expect("Invalid RUNES_BRIDGE_STARKNET_PRIV_KEY");
     static ref HIRO_API_URL: String = env::var("HIRO_API_URL").expect("HIRO_API_URL must be set");
     static ref HIRO_API_KEY: String = env::var("HIRO_API_KEY").expect("HIRO_API_KEY must be set");
+    static ref STARKNET_IS_TESTNET: bool = env::var("STARKNET_IS_TESTNET").expect("STARKNET_IS_TESTNET must be set").parse::<bool>().expect("unable to parse STARKNET_IS_TESTNET as bool");
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -211,15 +215,22 @@ pub async fn claim_deposit_data(
         );
     };
 
-    // Compute signature of (rune_id, rune_amount, target_addr, deposit_tx_id)
-    let hashed = pedersen_hash(
-        &pedersen_hash(
-            &pedersen_hash(&rune_id, &amount_felt.0),
-            &body.starknet_addr.felt,
-        ),
-        &tx_id_felt.0,
+    let chain_id = if *STARKNET_IS_TESTNET {
+        // chain_id from starknet.rs version we are using has only MAINNET & GOERLI
+        felt!("393402133025997798000961")
+    } else {
+        chain_id::MAINNET
+    };
+    let msg_hash = build_claim_data_hash(
+        chain_id,
+        rune_id,
+        amount_felt.0,
+        body.starknet_addr.felt,
+        tx_id_felt.0,
     );
-    let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &hashed) {
+
+    let signature: ExtendedSignature = match ecdsa_sign(&RUNES_BRIDGE_STARKNET_PRIV_KEY, &msg_hash)
+    {
         Ok(signature) => signature,
         Err(e) => {
             return (
