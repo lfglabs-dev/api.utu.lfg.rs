@@ -8,7 +8,7 @@ use mongodb::{
 use crate::{
     models::{
         deposit::{
-            BitcoinDepositEntry, BitcoinDepositQuery, BlacklistedDeposit, DepositAddressDocument,
+            BitcoinDepositEntry, BitcoinDepositQuery, DepositAddressDocument,
             DepositClaimTxDocument, DepositDocument,
         },
         runes::SupportedRuneDocument,
@@ -45,12 +45,6 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         rune_id: String,
     ) -> Result<SupportedRuneDocument, DatabaseError>;
-    #[allow(dead_code)]
-    async fn is_blacklisted(
-        &self,
-        session: &mut ClientSession,
-        tx_id: String,
-    ) -> Result<(), DatabaseError>;
     async fn was_claimed(
         &self,
         session: &mut ClientSession,
@@ -186,24 +180,6 @@ impl DatabaseExt for Database {
 
         match result {
             Some(doc) => Ok(doc),
-            None => Err(DatabaseError::NotFound),
-        }
-    }
-
-    async fn is_blacklisted(
-        &self,
-        session: &mut ClientSession,
-        tx_id: String,
-    ) -> Result<(), DatabaseError> {
-        let result = self
-            .collection::<BlacklistedDeposit>("blacklisted_deposits")
-            .find_one(doc! {"tx_id": tx_id})
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
-
-        match result {
-            Some(_) => Ok(()),
             None => Err(DatabaseError::NotFound),
         }
     }

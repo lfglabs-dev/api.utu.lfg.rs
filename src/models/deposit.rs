@@ -47,11 +47,6 @@ pub enum DepositStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BlacklistedDeposit {
-    pub tx_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DepositClaimTxDocument {
     pub identifier: String,
     pub rune_id: String,
