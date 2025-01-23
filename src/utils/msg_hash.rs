@@ -1,3 +1,5 @@
+use std::env;
+
 use starknet::{
     core::types::FieldElement,
     macros::{felt, selector},
@@ -15,6 +17,7 @@ lazy_static::lazy_static! {
     // 'UtuRunesBridge: Claim'
     static ref UTU_RUNES_BRIDGE_CLAIM_STR: FieldElement = felt!("124892498472897766688382465010089205919870131202413");
     static ref CLAIM_RUNES_TYPE_SELECTOR: FieldElement = selector!("\"ClaimStruct\"(\"Operation\":\"shortstring\",\"Hashed value\":\"felt\")");
+    static ref STARKNET_ACCOUNT_ADDRESS: FieldElement = FieldElement::from_hex_be(&env::var("STARKNET_ACCOUNT_ADDRESS").expect("STARKNET_ACCOUNT_ADDRESS must be set")).unwrap();
 }
 
 fn build_starknet_domain_hash(chain_id: FieldElement) -> FieldElement {
@@ -43,7 +46,7 @@ pub fn build_claim_data_hash(
     let elements = &[
         *STARKNET_MESSAGE,
         build_starknet_domain_hash(chain_id),
-        starknet_addr,
+        *STARKNET_ACCOUNT_ADDRESS,
         claim_data_hash,
     ];
     poseidon_hash_many(elements)
