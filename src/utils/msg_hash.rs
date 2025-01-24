@@ -43,7 +43,6 @@ pub fn build_claim_data_hash(
     let elements = &[
         *STARKNET_MESSAGE,
         build_starknet_domain_hash(chain_id),
-        starknet_addr,
         claim_data_hash,
     ];
     poseidon_hash_many(elements)
@@ -80,24 +79,27 @@ mod tests {
         );
 
         let hashed = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
-
         assert_eq!(
             hashed,
             felt!("0x07a6d66b689fda331b65dba000b887cc17796ded88da0c9c3147c7cc3654a6b2")
         );
 
         let msg_hash = build_claim_data_hash(chain_id, rune_id, amount.0, addr, tx_u256.0);
+        assert_eq!(
+            msg_hash,
+            felt!("0x06d2fdb6e5c22b0f893bb3550bf28219a505a97d843f8cce7cc22023bf8acd5f")
+        );
 
         match ecdsa_sign(&priv_key, &msg_hash) {
             Ok(signature) => {
                 println!("Signature: {:?}", signature);
                 assert_eq!(
                     signature.r,
-                    felt!("0x016e36511229d3762d69765dd89027998c5dc4835296b2c726ff8b7584783b96")
+                    felt!("0x04854dfe178876b436ab086c05892050d4d00fe0287388512b098b8313ce0c46")
                 );
                 assert_eq!(
                     signature.s,
-                    felt!("0x067c0d351d91331f40115212bb20857fb829b72841c4398c650e75bf26abe404")
+                    felt!("0x00e810eb6a6309b2b9175e12d9d9063a224d5489f75696fbdb185e2e172abb26")
                 );
             }
             Err(e) => {
@@ -123,13 +125,13 @@ mod tests {
         let hashed = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
         assert_eq!(
             hashed,
-            felt!("1306982092902044479628413209941820794213042181553959206477943483982837766828")
+            felt!("0x02e3b9c42da5734902894f646ee4b33311e1bbd506787f24bf5918f99164daac")
         );
 
         let msg_hash = build_claim_data_hash(chain_id, rune_id, amount.0, addr, tx_u256.0);
         assert_eq!(
             msg_hash,
-            felt!("1399230175294365547338907522438013312618310262796496743899507213221713786687")
+            felt!("0x07241f8c2d1ededa866f604ac8f73845517687c960a309ab087459407e3a53a9")
         );
 
         match ecdsa_sign(&priv_key, &msg_hash) {
