@@ -40,22 +40,22 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         bitcoin_addr: String,
     ) -> Result<(), DatabaseError>;
-    async fn get_rune(
-        &self,
-        session: &mut ClientSession,
-        rune_id: String,
-    ) -> Result<SupportedRuneDocument, DatabaseError>;
+    // async fn get_rune(
+    //     &self,
+    //     session: &mut ClientSession,
+    //     rune_id: String,
+    // ) -> Result<SupportedRuneDocument, DatabaseError>;
     async fn was_claimed(
         &self,
         session: &mut ClientSession,
         tx_id: String,
         vout: Option<u64>,
     ) -> Result<String, DatabaseError>;
-    async fn store_deposit(
-        &self,
-        session: &mut ClientSession,
-        deposit: DepositDocument,
-    ) -> Result<(), DatabaseError>;
+    // async fn store_deposit(
+    //     &self,
+    //     session: &mut ClientSession,
+    //     deposit: DepositDocument,
+    // ) -> Result<(), DatabaseError>;
     async fn get_bitcoin_deposits(
         &self,
         session: &mut ClientSession,
@@ -166,23 +166,23 @@ impl DatabaseExt for Database {
             None => Err(DatabaseError::NotFound),
         }
     }
-    async fn get_rune(
-        &self,
-        session: &mut ClientSession,
-        rune_id: String,
-    ) -> Result<SupportedRuneDocument, DatabaseError> {
-        let result = self
-            .collection::<SupportedRuneDocument>("runes")
-            .find_one(doc! {"id": rune_id})
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
+    // async fn get_rune(
+    //     &self,
+    //     session: &mut ClientSession,
+    //     rune_id: String,
+    // ) -> Result<SupportedRuneDocument, DatabaseError> {
+    //     let result = self
+    //         .collection::<SupportedRuneDocument>("runes")
+    //         .find_one(doc! {"id": rune_id})
+    //         .session(&mut *session)
+    //         .await
+    //         .map_err(DatabaseError::QueryFailed)?;
 
-        match result {
-            Some(doc) => Ok(doc),
-            None => Err(DatabaseError::NotFound),
-        }
-    }
+    //     match result {
+    //         Some(doc) => Ok(doc),
+    //         None => Err(DatabaseError::NotFound),
+    //     }
+    // }
 
     async fn was_claimed(
         &self,
@@ -207,36 +207,36 @@ impl DatabaseExt for Database {
         }
     }
 
-    async fn store_deposit(
-        &self,
-        session: &mut ClientSession,
-        deposit: DepositDocument,
-    ) -> Result<(), DatabaseError> {
-        self.collection::<DepositDocument>("claimed_runes_deposits")
-            .update_one(
-                doc! {"identifier": deposit.identifier },
-                doc! {
-                    "$set":
-                    {
-                        "tx_id": &deposit.tx_id,
-                        "vout": deposit.vout,
-                        "rune": {
-                            "id": &deposit.rune.id,
-                            "name": &deposit.rune.name,
-                            "spaced_name": &deposit.rune.spaced_name,
-                        },
-                        "amount": &deposit.amount,
-                        "bitcoin_deposit_addr": &deposit.bitcoin_deposit_addr,
-                    }
-                },
-            )
-            .upsert(true)
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
+    // async fn store_deposit(
+    //     &self,
+    //     session: &mut ClientSession,
+    //     deposit: DepositDocument,
+    // ) -> Result<(), DatabaseError> {
+    //     self.collection::<DepositDocument>("claimed_runes_deposits")
+    //         .update_one(
+    //             doc! {"identifier": deposit.identifier },
+    //             doc! {
+    //                 "$set":
+    //                 {
+    //                     "tx_id": &deposit.tx_id,
+    //                     "vout": deposit.vout,
+    //                     "rune": {
+    //                         "id": &deposit.rune.id,
+    //                         "name": &deposit.rune.name,
+    //                         "spaced_name": &deposit.rune.spaced_name,
+    //                     },
+    //                     "amount": &deposit.amount,
+    //                     "bitcoin_deposit_addr": &deposit.bitcoin_deposit_addr,
+    //                 }
+    //             },
+    //         )
+    //         .upsert(true)
+    //         .session(&mut *session)
+    //         .await
+    //         .map_err(DatabaseError::QueryFailed)?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     async fn get_deposit_claim_txhash(
         &self,

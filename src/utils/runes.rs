@@ -1,5 +1,6 @@
 use starknet::core::types::FieldElement;
 
+#[allow(dead_code)]
 pub fn symbol_as_felt(symbol: String) -> FieldElement {
     let bytes = symbol.as_bytes();
     let mut rune_id_felt: u128 = 0;

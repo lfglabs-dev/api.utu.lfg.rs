@@ -10,6 +10,7 @@ lazy_static::lazy_static! {
     static ref TWO_POW_128: BigInt = BigInt::from(2).pow(128);
 }
 
+#[allow(dead_code)]
 pub fn to_uint256(n: BigInt) -> (FieldElement, FieldElement) {
     let (n_high, n_low) = n.div_rem(&TWO_POW_128);
     let (_, low_bytes) = n_low.to_bytes_be();
@@ -21,6 +22,7 @@ pub fn to_uint256(n: BigInt) -> (FieldElement, FieldElement) {
     )
 }
 
+#[allow(dead_code)]
 pub fn convert_to_bigint(amount: &str, divisibility: u64) -> Result<BigInt> {
     // Parse the amount string to BigDecimal
     let decimal_amount = Decimal::from_str(amount)?;
@@ -38,6 +40,7 @@ pub fn convert_to_bigint(amount: &str, divisibility: u64) -> Result<BigInt> {
     Ok(bigint_result)
 }
 
+#[allow(dead_code)]
 pub fn hex_to_uint256(hex_str: &str) -> Result<(FieldElement, FieldElement)> {
     // Parse the hexadecimal string into a BigInt
     let n = BigInt::from_str_radix(hex_str, 16)?;

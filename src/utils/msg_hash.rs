@@ -1,3 +1,5 @@
+use std::env;
+
 use starknet::{
     core::types::FieldElement,
     macros::{felt, selector},
@@ -15,8 +17,10 @@ lazy_static::lazy_static! {
     // 'UtuRunesBridge: Claim'
     static ref UTU_RUNES_BRIDGE_CLAIM_STR: FieldElement = felt!("124892498472897766688382465010089205919870131202413");
     static ref CLAIM_RUNES_TYPE_SELECTOR: FieldElement = selector!("\"ClaimStruct\"(\"Operation\":\"shortstring\",\"Hashed value\":\"felt\")");
+    static ref FORDEFI_DEPOSIT_VAULT_ADDRESS: FieldElement = FieldElement::from_hex_be(&env::var("FORDEFI_DEPOSIT_VAULT_ADDRESS").expect("FORDEFI_DEPOSIT_VAULT_ADDRESS must be set")).unwrap();
 }
 
+#[allow(dead_code)]
 fn build_starknet_domain_hash(chain_id: FieldElement) -> FieldElement {
     poseidon_hash_many(&[
         *STARKNET_DOMAIN_TYPE_SELECTOR,
@@ -27,6 +31,7 @@ fn build_starknet_domain_hash(chain_id: FieldElement) -> FieldElement {
     ])
 }
 
+#[allow(dead_code)]
 pub fn build_claim_data_hash(
     chain_id: FieldElement,
     rune_id: FieldElement,
@@ -43,6 +48,7 @@ pub fn build_claim_data_hash(
     let elements = &[
         *STARKNET_MESSAGE,
         build_starknet_domain_hash(chain_id),
+        *FORDEFI_DEPOSIT_VAULT_ADDRESS,
         claim_data_hash,
     ];
     poseidon_hash_many(elements)
@@ -85,9 +91,10 @@ mod tests {
         );
 
         let msg_hash = build_claim_data_hash(chain_id, rune_id, amount.0, addr, tx_u256.0);
+        println!("msg_hash: {:?}", msg_hash);
         assert_eq!(
             msg_hash,
-            felt!("0x06d2fdb6e5c22b0f893bb3550bf28219a505a97d843f8cce7cc22023bf8acd5f")
+            felt!("0x065be45be75c848ecae764086f5909891771fa22372b4e480f540880deafa4e9")
         );
 
         match ecdsa_sign(&priv_key, &msg_hash) {
@@ -95,11 +102,11 @@ mod tests {
                 println!("Signature: {:?}", signature);
                 assert_eq!(
                     signature.r,
-                    felt!("0x04854dfe178876b436ab086c05892050d4d00fe0287388512b098b8313ce0c46")
+                    felt!("0x06bc12e41c68662ccebbafcd1f9b542abdc508c851d2ede540845f67b4772dd2")
                 );
                 assert_eq!(
                     signature.s,
-                    felt!("0x00e810eb6a6309b2b9175e12d9d9063a224d5489f75696fbdb185e2e172abb26")
+                    felt!("0x0329135bff53478bf3c1d15b703e3c1ea79971f8afe6e07eca658c05041e40e7")
                 );
             }
             Err(e) => {
@@ -109,9 +116,58 @@ mod tests {
     }
 
     #[test]
+    fn test_contract_signature_utils() {
+        // Values matching test_signature in bridge contracts repository
+        let chain_id = felt!("0x00000000000000000000000000000000000000000000534e5f5345504f4c4941");
+        let priv_key = felt!("0x123");
+        let rune_id = felt!("0x95909ff0");
+        let amount = (felt!("0x7a120"), FieldElement::ZERO);
+        let addr = felt!("0x403c80a49f16ed8ecf751f4b3ad62cc8f85ebeb2d40dc3b4377a089b438995d");
+        let tx_u256 = (
+            felt!("29605767366663658861677795006692218876"),
+            FieldElement::ZERO,
+        );
+        let contract_address = felt!("418296719726"); // admin
+
+        let hashed_value = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
+        assert_eq!(
+            hashed_value,
+            felt!("0x07a6d66b689fda331b65dba000b887cc17796ded88da0c9c3147c7cc3654a6b2")
+        );
+
+        // compute message hash
+        let claim_data_hash = poseidon_hash_many(&[
+            *CLAIM_RUNES_TYPE_SELECTOR,
+            *UTU_RUNES_BRIDGE_CLAIM_STR,
+            hashed_value,
+        ]);
+        let elements = &[
+            *STARKNET_MESSAGE,
+            build_starknet_domain_hash(chain_id),
+            contract_address,
+            claim_data_hash,
+        ];
+        let msg_hash = poseidon_hash_many(elements);
+        println!("msg_hash: {:?}", msg_hash);
+        assert_eq!(
+            msg_hash,
+            felt!("533217458252584780821193225952723101733877605150221817989920408090894294696")
+        );
+
+        match ecdsa_sign(&priv_key, &msg_hash) {
+            Ok(signature) => {
+                println!("Signature: {:?}", signature);
+            }
+            Err(e) => {
+                println!("Error while generating signature: {}", e);
+            }
+        };
+    }
+
+    #[test]
     fn test_get_sig_contract() {
+        // Compute signatures for all other tests in utu bridge contracts repository
         let chain_id = felt!("393402133025997798000961");
-        println!("chain_id: {:?}", chain_id);
         let priv_key = felt!("0x123");
 
         let rune_id: FieldElement = felt!("97");
@@ -121,17 +177,29 @@ mod tests {
             felt!("273581432376733134300661245883050715131"),
             FieldElement::ZERO,
         );
+        let contract_address = felt!("508441226356"); // vault
 
-        let hashed = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
+        let hashed_value = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
         assert_eq!(
-            hashed,
+            hashed_value,
             felt!("0x02e3b9c42da5734902894f646ee4b33311e1bbd506787f24bf5918f99164daac")
         );
 
-        let msg_hash = build_claim_data_hash(chain_id, rune_id, amount.0, addr, tx_u256.0);
+        let claim_data_hash = poseidon_hash_many(&[
+            *CLAIM_RUNES_TYPE_SELECTOR,
+            *UTU_RUNES_BRIDGE_CLAIM_STR,
+            hashed_value,
+        ]);
+        let elements = &[
+            *STARKNET_MESSAGE,
+            build_starknet_domain_hash(chain_id),
+            contract_address,
+            claim_data_hash,
+        ];
+        let msg_hash = poseidon_hash_many(elements);
         assert_eq!(
             msg_hash,
-            felt!("0x07241f8c2d1ededa866f604ac8f73845517687c960a309ab087459407e3a53a9")
+            felt!("0x07895caa4666e16c4fa69e0da0cba07c259bc9ce35b2a28939da1f65ef56c9a4")
         );
 
         match ecdsa_sign(&priv_key, &msg_hash) {
