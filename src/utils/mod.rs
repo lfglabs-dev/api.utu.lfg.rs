@@ -1,10 +1,9 @@
-use ::starknet::core::types::FieldElement;
+use ::starknet::core::types::Felt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self};
 
 use crate::pub_struct;
 
-pub mod deposit;
 pub mod deposit_activity;
 pub mod macros;
 pub mod msg_hash;
@@ -13,7 +12,7 @@ pub mod starknet;
 pub mod withdrawals;
 
 pub_struct!(Debug, Clone, Copy, PartialEq, Eq; Address {
-    felt: FieldElement
+    felt: Felt
 });
 
 impl Serialize for Address {
@@ -32,9 +31,9 @@ impl<'de> Deserialize<'de> for Address {
     {
         let s = String::deserialize(deserializer)?;
         let felt = if s.starts_with("0x") {
-            FieldElement::from_hex_be(&s)
+            Felt::from_hex(&s)
         } else {
-            FieldElement::from_dec_str(&s)
+            Felt::from_dec_str(&s)
         }
         .map_err(|e| serde::de::Error::custom(e.to_string()))?;
         Ok(Address { felt })
@@ -56,9 +55,9 @@ impl Address {
     #[allow(dead_code)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         let felt = if s.starts_with("0x") {
-            FieldElement::from_hex_be(s)
+            Felt::from_hex(s)
         } else {
-            FieldElement::from_dec_str(s)
+            Felt::from_dec_str(s)
         }
         .map_err(|e| e.to_string())?;
 

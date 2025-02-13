@@ -11,7 +11,7 @@ use axum::Json;
 use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
-use starknet_crypto::FieldElement;
+use starknet_crypto::Felt;
 
 use super::responses::{ApiResponse, Status};
 
@@ -34,8 +34,8 @@ pub async fn bitcoin_deposits<B>(
             .iter()
             .map(|address| {
                 // Try parsing as hex; fall back to decimal if hex parsing fails
-                FieldElement::from_hex_be(address)
-                    .or_else(|_| FieldElement::from_dec_str(address))
+                Felt::from_hex(address)
+                    .or_else(|_| Felt::from_dec_str(address))
                     .map(|addr_felt| (Address { felt: addr_felt }).to_string())
                     .unwrap_or_else(|_| String::new())
             })

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
-use crate::utils::deposit::get_bitcoin_addr_from_starknet_addr;
 use crate::utils::Address;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
@@ -12,6 +11,7 @@ use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use utu_bridge_deposit_address::get_deposit_address;
 
 use super::responses::{ApiResponse, Status};
 
@@ -36,12 +36,12 @@ pub async fn get_bitcoin_deposit_addr(
         );
     };
 
-    let deposit_addr = get_bitcoin_addr_from_starknet_addr(query.starknet_addr);
+    let deposit_addr = get_deposit_address(query.starknet_addr.felt);
 
     // store deposit address into database
     if let Err(err) = state
         .db
-        .set_user_bitcoin_deposit_addr(&mut session, query.starknet_addr, deposit_addr.clone())
+        .set_user_bitcoin_deposit_addr(&mut session, query.starknet_addr, deposit_addr.to_string())
         .await
     {
         return (

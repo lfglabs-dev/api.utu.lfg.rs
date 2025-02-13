@@ -1,7 +1,7 @@
-use starknet::core::types::FieldElement;
+use starknet::core::types::Felt;
 
 #[allow(dead_code)]
-pub fn symbol_as_felt(symbol: String) -> FieldElement {
+pub fn symbol_as_felt(symbol: String) -> Felt {
     let bytes = symbol.as_bytes();
     let mut rune_id_felt: u128 = 0;
     let mut shift_amount: u128 = 1;
@@ -11,18 +11,20 @@ pub fn symbol_as_felt(symbol: String) -> FieldElement {
         shift_amount *= 256;
     }
 
-    FieldElement::from(rune_id_felt)
+    Felt::from(rune_id_felt)
 }
 
 #[cfg(test)]
 mod tests {
+    use starknet::macros::felt;
+
     use super::*;
 
     #[test]
     fn test_symbol_as_felt() {
         let symbol = "🐕";
         let symbol_felt = symbol_as_felt(symbol.to_string());
-        let expected_res = FieldElement::from_dec_str("2509283312").unwrap();
+        let expected_res = felt!("2509283312");
         assert_eq!(symbol_felt, expected_res);
     }
 }
