@@ -1,5 +1,9 @@
 FROM rust:1.83.0
 
+# Copy the private dependency first at the root level
+COPY utu_bridge_deposit_address /utu_bridge_deposit_address
+
+# Then set up the main project directory
 WORKDIR /app
 
 ARG ENV=test
