@@ -1,8 +1,5 @@
 FROM rust:1.83.0
 
-# Copy the private dependency first at the root level
-COPY utu_bridge_deposit_address /utu_bridge_deposit_address
-
 # Then set up the main project directory
 WORKDIR /app
 
@@ -18,6 +15,9 @@ RUN curl -L -o dotenvx.tar.gz "https://github.com/dotenvx/dotenvx/releases/lates
 
 COPY Cargo.toml .env .env.production .
 COPY src ./src
+# Copy the private dependency first at the root level
+# todo: remove when made public
+COPY ./utu_bridge_deposit_address ../utu_bridge_deposit_address
 
 RUN if [ "$CONTAINER_ENV" = "prod" ]; then \
         cargo build --release; \
