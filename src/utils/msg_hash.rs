@@ -1,27 +1,27 @@
 use std::env;
 
 use starknet::{
-    core::types::FieldElement,
+    core::types::Felt,
     macros::{felt, selector},
 };
 use starknet_crypto::poseidon_hash_many;
 
 lazy_static::lazy_static! {
     // 'StarkNet Message'
-    static ref STARKNET_MESSAGE: FieldElement = felt!("110930206544689809660069706067448260453");
+    static ref STARKNET_MESSAGE: Felt = felt!("110930206544689809660069706067448260453");
     // 'Utu Runes Bridge'
-    static ref UTU_RUNES_BRIDGE_STR: FieldElement = felt!("113589061680052453361606720447114930021");
-    static ref STARKNET_DOMAIN_TYPE_SELECTOR: FieldElement = selector!("\"StarknetDomain\"(\"name\":\"shortstring\",\"version\":\"shortstring\",\"chainId\":\"shortstring\",\"revision\":\"shortstring\")");
-    static ref VERSION: FieldElement = FieldElement::ONE;
-    static ref REVISION: FieldElement = FieldElement::ONE;
+    static ref UTU_RUNES_BRIDGE_STR: Felt = felt!("113589061680052453361606720447114930021");
+    static ref STARKNET_DOMAIN_TYPE_SELECTOR: Felt = selector!("\"StarknetDomain\"(\"name\":\"shortstring\",\"version\":\"shortstring\",\"chainId\":\"shortstring\",\"revision\":\"shortstring\")");
+    static ref VERSION: Felt = Felt::ONE;
+    static ref REVISION: Felt = Felt::ONE;
     // 'UtuRunesBridge: Claim'
-    static ref UTU_RUNES_BRIDGE_CLAIM_STR: FieldElement = felt!("124892498472897766688382465010089205919870131202413");
-    static ref CLAIM_RUNES_TYPE_SELECTOR: FieldElement = selector!("\"ClaimStruct\"(\"Operation\":\"shortstring\",\"Hashed value\":\"felt\")");
-    static ref FORDEFI_DEPOSIT_VAULT_ADDRESS: FieldElement = FieldElement::from_hex_be(&env::var("FORDEFI_DEPOSIT_VAULT_ADDRESS").expect("FORDEFI_DEPOSIT_VAULT_ADDRESS must be set")).unwrap();
+    static ref UTU_RUNES_BRIDGE_CLAIM_STR: Felt = felt!("124892498472897766688382465010089205919870131202413");
+    static ref CLAIM_RUNES_TYPE_SELECTOR: Felt = selector!("\"ClaimStruct\"(\"Operation\":\"shortstring\",\"Hashed value\":\"felt\")");
+    static ref FORDEFI_DEPOSIT_VAULT_ADDRESS: Felt = Felt::from_hex(&env::var("FORDEFI_DEPOSIT_VAULT_ADDRESS").expect("FORDEFI_DEPOSIT_VAULT_ADDRESS must be set")).unwrap();
 }
 
 #[allow(dead_code)]
-fn build_starknet_domain_hash(chain_id: FieldElement) -> FieldElement {
+fn build_starknet_domain_hash(chain_id: Felt) -> Felt {
     poseidon_hash_many(&[
         *STARKNET_DOMAIN_TYPE_SELECTOR,
         *UTU_RUNES_BRIDGE_STR, // "Utu Runes Bridge"
@@ -33,12 +33,12 @@ fn build_starknet_domain_hash(chain_id: FieldElement) -> FieldElement {
 
 #[allow(dead_code)]
 pub fn build_claim_data_hash(
-    chain_id: FieldElement,
-    rune_id: FieldElement,
-    amount: FieldElement,
-    starknet_addr: FieldElement,
-    tx_id: FieldElement,
-) -> FieldElement {
+    chain_id: Felt,
+    rune_id: Felt,
+    amount: Felt,
+    starknet_addr: Felt,
+    tx_id: Felt,
+) -> Felt {
     let hashed = poseidon_hash_many(&[rune_id, amount, starknet_addr, tx_id]);
     let claim_data_hash = poseidon_hash_many(&[
         *CLAIM_RUNES_TYPE_SELECTOR,
@@ -68,8 +68,8 @@ mod tests {
         println!("chain_id: {:?}", chain_id);
         let priv_key = felt!("0x123");
 
-        let rune_id: FieldElement = felt!("0x95909ff0");
-        let amount = (felt!("0x7a120"), FieldElement::ZERO);
+        let rune_id: Felt = felt!("0x95909ff0");
+        let amount = (felt!("0x7a120"), Felt::ZERO);
         let addr = felt!("0x403c80a49f16ed8ecf751f4b3ad62cc8f85ebeb2d40dc3b4377a089b438995d");
 
         let tx_deposit_id = "bd51cd6d88a59456e2585c2dd61e51f91645dd071d33484d0015328f460057fc";
@@ -121,12 +121,9 @@ mod tests {
         let chain_id = felt!("0x00000000000000000000000000000000000000000000534e5f5345504f4c4941");
         let priv_key = felt!("0x123");
         let rune_id = felt!("0x95909ff0");
-        let amount = (felt!("0x7a120"), FieldElement::ZERO);
+        let amount = (felt!("0x7a120"), Felt::ZERO);
         let addr = felt!("0x403c80a49f16ed8ecf751f4b3ad62cc8f85ebeb2d40dc3b4377a089b438995d");
-        let tx_u256 = (
-            felt!("29605767366663658861677795006692218876"),
-            FieldElement::ZERO,
-        );
+        let tx_u256 = (felt!("29605767366663658861677795006692218876"), Felt::ZERO);
         let contract_address = felt!("418296719726"); // admin
 
         let hashed_value = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
@@ -170,13 +167,10 @@ mod tests {
         let chain_id = felt!("393402133025997798000961");
         let priv_key = felt!("0x123");
 
-        let rune_id: FieldElement = felt!("97");
-        let amount = (felt!("25000"), FieldElement::ZERO);
+        let rune_id: Felt = felt!("97");
+        let amount = (felt!("25000"), Felt::ZERO);
         let addr = felt!("504447201841");
-        let tx_u256 = (
-            felt!("273581432376733134300661245883050715131"),
-            FieldElement::ZERO,
-        );
+        let tx_u256 = (felt!("273581432376733134300661245883050715131"), Felt::ZERO);
         let contract_address = felt!("508441226356"); // vault
 
         let hashed_value = poseidon_hash_many(&[rune_id, amount.0, addr, tx_u256.0]);
