@@ -98,8 +98,8 @@ pub async fn get_activity_bitcoin_addr(
             }
 
             // we fetch 60 results at a time but total activity could be more
-            offset += 1;
-            if account_activity.total <= offset * 60 {
+            offset += 60;
+            if offset >= account_activity.total {
                 break;
             }
         }
