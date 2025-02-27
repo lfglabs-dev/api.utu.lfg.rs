@@ -14,7 +14,7 @@ use crate::{
         runes::SupportedRuneDocument,
         withdrawal::{WithdrawalRequest, WithdrawalStatusResponse},
     },
-    utils::Address,
+    utils::{hex::trim_leading_zeros, Address},
 };
 
 use super::DatabaseError;
@@ -40,22 +40,12 @@ pub trait DatabaseExt {
         session: &mut ClientSession,
         bitcoin_addr: String,
     ) -> Result<(), DatabaseError>;
-    // async fn get_rune(
-    //     &self,
-    //     session: &mut ClientSession,
-    //     rune_id: String,
-    // ) -> Result<SupportedRuneDocument, DatabaseError>;
     async fn was_claimed(
         &self,
         session: &mut ClientSession,
         tx_id: String,
         vout: Option<u64>,
     ) -> Result<String, DatabaseError>;
-    // async fn store_deposit(
-    //     &self,
-    //     session: &mut ClientSession,
-    //     deposit: DepositDocument,
-    // ) -> Result<(), DatabaseError>;
     async fn get_bitcoin_deposits(
         &self,
         session: &mut ClientSession,
@@ -166,23 +156,6 @@ impl DatabaseExt for Database {
             None => Err(DatabaseError::NotFound),
         }
     }
-    // async fn get_rune(
-    //     &self,
-    //     session: &mut ClientSession,
-    //     rune_id: String,
-    // ) -> Result<SupportedRuneDocument, DatabaseError> {
-    //     let result = self
-    //         .collection::<SupportedRuneDocument>("runes")
-    //         .find_one(doc! {"id": rune_id})
-    //         .session(&mut *session)
-    //         .await
-    //         .map_err(DatabaseError::QueryFailed)?;
-
-    //     match result {
-    //         Some(doc) => Ok(doc),
-    //         None => Err(DatabaseError::NotFound),
-    //     }
-    // }
 
     async fn was_claimed(
         &self,
@@ -191,7 +164,7 @@ impl DatabaseExt for Database {
         vout: Option<u64>,
     ) -> Result<String, DatabaseError> {
         let identifier = match vout {
-            Some(vout) => format!("{}:{}", tx_id, vout),
+            Some(vout) => format!("{}:{}", trim_leading_zeros(&tx_id), vout),
             None => return Err(DatabaseError::Other("vout is None".to_string())),
         };
         let result = self
@@ -206,37 +179,6 @@ impl DatabaseExt for Database {
             None => Err(DatabaseError::NotFound),
         }
     }
-
-    // async fn store_deposit(
-    //     &self,
-    //     session: &mut ClientSession,
-    //     deposit: DepositDocument,
-    // ) -> Result<(), DatabaseError> {
-    //     self.collection::<DepositDocument>("claimed_runes_deposits")
-    //         .update_one(
-    //             doc! {"identifier": deposit.identifier },
-    //             doc! {
-    //                 "$set":
-    //                 {
-    //                     "tx_id": &deposit.tx_id,
-    //                     "vout": deposit.vout,
-    //                     "rune": {
-    //                         "id": &deposit.rune.id,
-    //                         "name": &deposit.rune.name,
-    //                         "spaced_name": &deposit.rune.spaced_name,
-    //                     },
-    //                     "amount": &deposit.amount,
-    //                     "bitcoin_deposit_addr": &deposit.bitcoin_deposit_addr,
-    //                 }
-    //             },
-    //         )
-    //         .upsert(true)
-    //         .session(&mut *session)
-    //         .await
-    //         .map_err(DatabaseError::QueryFailed)?;
-
-    //     Ok(())
-    // }
 
     async fn get_deposit_claim_txhash(
         &self,
@@ -281,7 +223,7 @@ impl DatabaseExt for Database {
                     "preserveNullAndEmptyArrays": true
                 }
             },
-            // Add identifier as tx_id:vout for the next lookup
+            // Get trimmed identifier without leading zeros as tx_id:vout for the next lookup
             doc! {
                 "$addFields": {
                     "claimed_deposits": {
@@ -290,7 +232,7 @@ impl DatabaseExt for Database {
                             "then": null,
                             "else": {
                                 "$mergeObjects": [
-                                    "$claimed_deposits", // Retain all original fields
+                                    "$claimed_deposits", // Keep all original fields
                                     {
                                         "identifier": {
                                             "$concat": [
@@ -298,10 +240,43 @@ impl DatabaseExt for Database {
                                                 ":",
                                                 { "$toString": "$claimed_deposits.vout" }
                                             ]
+                                        },
+                                        "trimmed_identifier": {
+                                            "$let": {
+                                                "vars": {
+                                                    "txid": "$claimed_deposits.tx_id",
+                                                    "length": { "$strLenCP": "$claimed_deposits.tx_id" },
+                                                    "first_match": {
+                                                        "$regexFind": {
+                                                            "input": "$claimed_deposits.tx_id",
+                                                            "regex": "[1-9]"
+                                                        }
+                                                    }
+                                                },
+                                                "in": {
+                                                    "$concat": [
+                                                        {
+                                                            "$substrCP": [
+                                                                "$$txid",
+                                                                {
+                                                                    "$cond": {
+                                                                        "if": { "$eq": ["$$first_match.match", null] },
+                                                                        "then": 0,  // If no match, keep full tx_id
+                                                                        "else": { "$indexOfCP": ["$$txid", "$$first_match.match"] }
+                                                                    }
+                                                                },
+                                                                "$$length"
+                                                            ]
+                                                        },
+                                                        ":",
+                                                        { "$toString": "$claimed_deposits.vout" }
+                                                    ]
+                                                }
+                                            }
                                         }
                                     }
                                 ]
-                            },
+                            }
                         }
                     }
                 }
@@ -309,7 +284,7 @@ impl DatabaseExt for Database {
             doc! {
                 "$lookup": {
                     "from": "deposit_claim_txs",
-                    "let": { "identifier": "$claimed_deposits.identifier" },
+                    "let": { "identifier": "$claimed_deposits.trimmed_identifier" },
                     "pipeline": [
                         {
                             "$match": {
