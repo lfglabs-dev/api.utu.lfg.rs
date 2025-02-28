@@ -17,7 +17,7 @@ COPY Cargo.toml .env .env.production .
 COPY src ./src
 # Copy the private dependency first at the root level
 # todo: remove when made public
-COPY ./utu_bridge_deposit_address ../utu_bridge_deposit_address
+COPY ./utu_bridge_deposit_address ./utu_bridge_deposit_address
 
 RUN if [ "$CONTAINER_ENV" = "prod" ]; then \
         cargo build --release; \
