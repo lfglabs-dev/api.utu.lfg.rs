@@ -32,11 +32,13 @@ pub struct WithdrawalStatusResponse {
     pub matched_submissions: Option<WithdrawalSubmission>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct BitcoinWithdrawalResponse {
     pub status: BitcoinWithdrawalStatus,
     pub sn_txhash: String,
-    pub rejected: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub btc_txid: Option<String>,
 }
 
