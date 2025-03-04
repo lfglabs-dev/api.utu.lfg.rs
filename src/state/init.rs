@@ -5,7 +5,7 @@ use mongodb::options::ClientOptions;
 
 use crate::logger::Logger;
 
-use super::{rate_limit::RateLimitStateTrait, AppState, RateLimitState};
+use super::AppState;
 
 pub trait AppStateTraitInitializer {
     async fn load() -> Arc<Self>;
@@ -40,16 +40,10 @@ impl AppStateTraitInitializer for AppState {
         )
         .unwrap();
 
-        let max_query_per_mn = env::var("HIRO_RATE_LIMIT_MN")
-            .expect("HIRO_RATE_LIMIT_MN must be set")
-            .parse::<usize>()
-            .expect("Unable to convert HIRO_RATE_LIMIT_MN to usize");
-
         Arc::new_cyclic(|_| AppState {
             logger,
             db,
             bitcoin_provider,
-            rate_limit: <RateLimitState>::init(max_query_per_mn),
         })
     }
 }

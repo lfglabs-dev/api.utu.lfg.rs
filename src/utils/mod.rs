@@ -4,7 +4,6 @@ use std::fmt::{self};
 
 use crate::pub_struct;
 
-pub mod deposit_activity;
 pub mod hex;
 pub mod macros;
 pub mod withdrawals;

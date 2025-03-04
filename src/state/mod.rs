@@ -3,14 +3,12 @@ use mongodb::Database;
 use thiserror::Error;
 
 use axum::{body::Body, Router};
-use std::{sync::Arc, time::Instant};
-use tokio::sync::RwLock;
+use std::sync::Arc;
 
 use crate::logger::Logger;
 
 pub mod database;
 pub mod init;
-pub mod rate_limit;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -34,12 +32,6 @@ pub struct AppState {
     pub logger: Logger,
     pub db: Database,
     pub bitcoin_provider: Client,
-    pub rate_limit: RateLimitState,
-}
-
-pub struct RateLimitState {
-    pub max_query_per_mn: usize,
-    pub data: RwLock<Vec<Instant>>,
 }
 
 // required for axum_auto_routes
@@ -63,30 +55,4 @@ impl Clone for Box<dyn WithState> {
     fn clone(&self) -> Box<dyn WithState> {
         self.box_clone()
     }
-}
-
-macro_rules! impl_with_lock {
-    ($name:ident, $field:ident, $type:ty) => {
-        pub async fn $name<F, R>(&self, f: F) -> R
-        where
-            F: FnOnce(&mut $type) -> R,
-        {
-            let mut guard = self.$field.write().await;
-            f(&mut guard)
-        }
-
-        paste::paste! {
-            pub async fn [<$name _read>]<F, R>(&self, f: F) -> R
-            where
-                F: FnOnce(&$type) -> R,
-            {
-                let guard = self.$field.read().await;
-                f(&guard)
-            }
-        }
-    };
-}
-
-impl RateLimitState {
-    impl_with_lock!(with_limiter, data, Vec<Instant>);
 }
