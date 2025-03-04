@@ -372,7 +372,7 @@ impl DatabaseExt for Database {
             .map_err(DatabaseError::QueryFailed)?;
 
         let mut res: Vec<WithdrawalStatusResponse> = Vec::new();
-        if let Some(doc) = cursor.next(&mut *session).await {
+        while let Some(doc) = cursor.next(&mut *session).await {
             let data: WithdrawalStatusResponse =
                 from_document(doc.map_err(DatabaseError::QueryFailed)?)
                     .map_err(DatabaseError::DeserializationFailed)?;
