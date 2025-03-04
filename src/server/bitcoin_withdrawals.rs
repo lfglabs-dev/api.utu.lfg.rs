@@ -63,14 +63,14 @@ pub async fn bitcoin_withdrawals(
             result.push(BitcoinWithdrawalResponse {
                 status: BitcoinWithdrawalStatus::InReview,
                 sn_txhash: withdrawal.transaction_hash,
-                rejected: None,
+                reason: None,
                 btc_txid: None,
             });
         } else if withdrawal.rejected_status.is_some() {
             result.push(BitcoinWithdrawalResponse {
                 status: BitcoinWithdrawalStatus::Rejected,
                 sn_txhash: withdrawal.transaction_hash,
-                rejected: withdrawal.rejected_status,
+                reason: withdrawal.rejected_status,
                 btc_txid: None,
             });
         } else if withdrawal.matched_submissions.is_some() {

@@ -19,7 +19,7 @@ pub fn retrieve_submission_status(
             return BitcoinWithdrawalResponse {
                 status: BitcoinWithdrawalStatus::InReview,
                 sn_txhash,
-                rejected: None,
+                reason: None,
                 btc_txid: None,
             }
         }
@@ -29,14 +29,14 @@ pub fn retrieve_submission_status(
         BitcoinWithdrawalResponse {
             status: BitcoinWithdrawalStatus::Submitted,
             sn_txhash,
-            rejected: None,
+            reason: None,
             btc_txid: Some(tx.txid.to_string()),
         }
     } else {
         BitcoinWithdrawalResponse {
             status: BitcoinWithdrawalStatus::InReview,
             sn_txhash,
-            rejected: None,
+            reason: None,
             btc_txid: None,
         }
     }

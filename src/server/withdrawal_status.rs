@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::server::responses::{ApiResponse, Status};
@@ -9,6 +10,7 @@ use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
+use bitcoin::Txid;
 use bitcoincore_rpc::RpcApi;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
@@ -78,11 +80,8 @@ pub async fn withdrawal_status(
         let matched_submissions = withdrawal_status.matched_submissions.unwrap();
 
         // decode raw transaction
-        let decoded_tx = state
-            .bitcoin_provider
-            .decode_raw_transaction(matched_submissions.request_id, None);
-        let txid = match decoded_tx {
-            Ok(tx) => tx.txid,
+        let txid = match Txid::from_str(&matched_submissions.request_id) {
+            Ok(txid) => txid,
             Err(_) => {
                 return (
                     StatusCode::ACCEPTED,
