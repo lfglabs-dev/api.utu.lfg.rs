@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
+use bitcoin::Txid;
 use bitcoincore_rpc::RpcApi;
 
 use crate::{
@@ -12,10 +13,8 @@ pub fn retrieve_submission_status(
     sn_txhash: String,
     tx_hex: String,
 ) -> BitcoinWithdrawalResponse {
-    // decode raw transaction
-    let decoded_tx = state.bitcoin_provider.decode_raw_transaction(tx_hex, None);
-    let txid = match decoded_tx {
-        Ok(tx) => tx.txid,
+    let txid = match Txid::from_str(&tx_hex) {
+        Ok(txid) => txid,
         Err(_) => {
             return BitcoinWithdrawalResponse {
                 status: BitcoinWithdrawalStatus::InReview,
