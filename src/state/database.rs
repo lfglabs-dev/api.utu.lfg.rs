@@ -11,10 +11,9 @@ use crate::{
             BitcoinDepositEntry, BitcoinDepositQuery, DepositAddressDocument,
             DepositClaimTxDocument, DepositDocument,
         },
-        runes::SupportedRuneDocument,
         withdrawal::{WithdrawalRequest, WithdrawalStatusResponse},
     },
-    utils::{hex::trim_leading_zeros, Address},
+    utils::Address,
 };
 
 use super::DatabaseError;
@@ -26,26 +25,6 @@ pub trait DatabaseExt {
         starknet_addr: Address,
         bitcoin_addr: String,
     ) -> Result<(), DatabaseError>;
-    async fn get_bitcoin_deposit_addr(
-        &self,
-        session: &mut ClientSession,
-        starknet_addr: Address,
-    ) -> Result<String, DatabaseError>;
-    async fn get_supported_runes(
-        &self,
-        session: &mut ClientSession,
-    ) -> Result<Vec<SupportedRuneDocument>, DatabaseError>;
-    async fn is_deposit_addr(
-        &self,
-        session: &mut ClientSession,
-        bitcoin_addr: String,
-    ) -> Result<(), DatabaseError>;
-    async fn was_claimed(
-        &self,
-        session: &mut ClientSession,
-        tx_id: String,
-        vout: Option<u64>,
-    ) -> Result<String, DatabaseError>;
     async fn get_bitcoin_deposits(
         &self,
         session: &mut ClientSession,
@@ -97,87 +76,6 @@ impl DatabaseExt for Database {
             .await
             .map_err(DatabaseError::QueryFailed)?;
         Ok(())
-    }
-
-    async fn get_bitcoin_deposit_addr(
-        &self,
-        session: &mut ClientSession,
-        starknet_addr: Address,
-    ) -> Result<String, DatabaseError> {
-        let result = self
-            .collection::<DepositAddressDocument>("deposit_addresses")
-            .find_one(doc! {"starknet_address": starknet_addr.to_string()})
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
-
-        match result {
-            Some(doc) => Ok(doc.bitcoin_deposit_address),
-            None => Err(DatabaseError::NotFound),
-        }
-    }
-    async fn get_supported_runes(
-        &self,
-        session: &mut ClientSession,
-    ) -> Result<Vec<SupportedRuneDocument>, DatabaseError> {
-        let mut cursor = self
-            .collection::<SupportedRuneDocument>("runes")
-            .find(doc! {})
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
-
-        let mut res: Vec<SupportedRuneDocument> = Vec::new();
-
-        while let Some(doc_result) = cursor.next(session).await {
-            match doc_result {
-                Ok(doc) => res.push(doc),
-                Err(err) => return Err(DatabaseError::QueryFailed(err)),
-            }
-        }
-
-        Ok(res)
-    }
-
-    async fn is_deposit_addr(
-        &self,
-        session: &mut ClientSession,
-        bitcoin_addr: String,
-    ) -> Result<(), DatabaseError> {
-        let result = self
-            .collection::<DepositAddressDocument>("deposit_addresses")
-            .find_one(doc! {"bitcoin_deposit_address": bitcoin_addr})
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
-
-        match result {
-            Some(_) => Ok(()),
-            None => Err(DatabaseError::NotFound),
-        }
-    }
-
-    async fn was_claimed(
-        &self,
-        session: &mut ClientSession,
-        tx_id: String,
-        vout: Option<u64>,
-    ) -> Result<String, DatabaseError> {
-        let identifier = match vout {
-            Some(vout) => format!("{}:{}", trim_leading_zeros(&tx_id), vout),
-            None => return Err(DatabaseError::Other("vout is None".to_string())),
-        };
-        let result = self
-            .collection::<DepositClaimTxDocument>("deposit_claim_txs")
-            .find_one(doc! {"identifier": identifier, "_cursor.to": null })
-            .session(&mut *session)
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
-
-        match result {
-            Some(claim_tx) => Ok(claim_tx.transaction_hash),
-            None => Err(DatabaseError::NotFound),
-        }
     }
 
     async fn get_deposit_claim_txhash(
