@@ -54,9 +54,7 @@ pub async fn withdrawal_status(
         },
     };
 
-    if withdrawal_status.matched_submissions.is_none()
-        && withdrawal_status.rejected_status.is_none()
-    {
+    if withdrawal_status.matched_submissions.is_none() {
         return (
             StatusCode::ACCEPTED,
             Json(ApiResponse::new(
@@ -66,21 +64,22 @@ pub async fn withdrawal_status(
         );
     }
 
-    if withdrawal_status.rejected_status.is_some() {
+    let matched_submissions = withdrawal_status.matched_submissions.unwrap();
+
+    if matched_submissions.rejected_status.is_some() {
         return (
             StatusCode::ACCEPTED,
             Json(ApiResponse::new(
                 Status::Success,
-                json!({ "status": "rejected", "reason": withdrawal_status.rejected_status.unwrap() }),
+                json!({ "status": "rejected", "reason": matched_submissions.rejected_status.unwrap() }),
             )),
         );
     }
 
-    if withdrawal_status.matched_submissions.is_some() {
-        let matched_submissions = withdrawal_status.matched_submissions.unwrap();
-
+    if matched_submissions.request_id.is_some() {
+        let request_id = matched_submissions.request_id.unwrap();
         // decode raw transaction
-        let txid = match Txid::from_str(&matched_submissions.request_id) {
+        let txid = match Txid::from_str(&request_id) {
             Ok(txid) => txid,
             Err(_) => {
                 return (
