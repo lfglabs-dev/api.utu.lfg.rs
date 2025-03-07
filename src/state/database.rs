@@ -301,7 +301,6 @@ impl DatabaseExt for Database {
                     "_id": 0,
                     "identifier": 1,
                     "transaction_hash": 1,
-                    "rejected_status": 1,
                     "matched_submissions": 1
                 }
             },
@@ -359,7 +358,6 @@ impl DatabaseExt for Database {
                     "_id": 0,
                     "identifier": 1,
                     "transaction_hash": 1,
-                    "rejected_status": 1,
                     "matched_submissions": 1
                 }
             },

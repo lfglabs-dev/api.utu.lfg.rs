@@ -59,28 +59,29 @@ pub async fn bitcoin_withdrawals(
 
     let mut result: Vec<BitcoinWithdrawalResponse> = Vec::new();
     for withdrawal in withdrawals {
-        if withdrawal.matched_submissions.is_none() && withdrawal.rejected_status.is_none() {
-            result.push(BitcoinWithdrawalResponse {
-                status: BitcoinWithdrawalStatus::InReview,
-                sn_txhash: withdrawal.transaction_hash,
-                reason: None,
-                btc_txid: None,
-            });
-        } else if withdrawal.rejected_status.is_some() {
-            result.push(BitcoinWithdrawalResponse {
-                status: BitcoinWithdrawalStatus::Rejected,
-                sn_txhash: withdrawal.transaction_hash,
-                reason: withdrawal.rejected_status,
-                btc_txid: None,
-            });
-        } else if withdrawal.matched_submissions.is_some() {
+        if withdrawal.matched_submissions.is_some() {
             let matched_submissions = withdrawal.matched_submissions.unwrap();
-            let submission = retrieve_submission_status(
-                &state,
-                withdrawal.transaction_hash,
-                matched_submissions.request_id,
-            );
-            result.push(submission);
+
+            if matched_submissions.rejected_status.is_some() {
+                result.push(BitcoinWithdrawalResponse {
+                    status: BitcoinWithdrawalStatus::Rejected,
+                    sn_txhash: withdrawal.transaction_hash,
+                    reason: matched_submissions.rejected_status,
+                    btc_txid: None,
+                });
+            } else if matched_submissions.request_id.is_some() {
+                let request_id = matched_submissions.request_id.unwrap();
+                let submission =
+                    retrieve_submission_status(&state, withdrawal.transaction_hash, request_id);
+                result.push(submission);
+            } else {
+                result.push(BitcoinWithdrawalResponse {
+                    status: BitcoinWithdrawalStatus::InReview,
+                    sn_txhash: withdrawal.transaction_hash,
+                    reason: None,
+                    btc_txid: None,
+                });
+            }
         }
     }
 

@@ -9,7 +9,6 @@ pub struct WithdrawalRequest {
     pub caller_address: String,
     pub transaction_hash: String,
     pub _cursor: Cursor,
-    pub rejected_status: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -21,14 +20,14 @@ pub struct Cursor {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalSubmission {
     pub identifier: String,
-    pub request_id: String,
+    pub request_id: Option<String>,
+    pub rejected_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalStatusResponse {
     pub identifier: String,
     pub transaction_hash: String,
-    pub rejected_status: Option<String>,
     pub matched_submissions: Option<WithdrawalSubmission>,
 }
 
