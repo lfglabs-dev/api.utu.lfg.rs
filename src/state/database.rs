@@ -4,6 +4,7 @@ use mongodb::{
     bson::{doc, from_document, DateTime},
     ClientSession, Database,
 };
+use starknet_crypto::Felt;
 
 use crate::{
     models::{
@@ -49,7 +50,7 @@ pub trait DatabaseExt {
         &self,
         session: &mut ClientSession,
         bitcoin_receiving_address: Option<String>,
-        starknet_sending_address: Option<String>,
+        starknet_sending_address: Option<Felt>,
     ) -> Result<Vec<WithdrawalStatusResponse>, DatabaseError>;
 }
 
@@ -326,7 +327,7 @@ impl DatabaseExt for Database {
         &self,
         session: &mut ClientSession,
         bitcoin_receiving_address: Option<String>,
-        starknet_sending_address: Option<String>,
+        starknet_sending_address: Option<Felt>,
     ) -> Result<Vec<WithdrawalStatusResponse>, DatabaseError> {
         let mut match_stage = doc! {
             "_cursor.to": { "$eq": null }
@@ -335,7 +336,7 @@ impl DatabaseExt for Database {
         if let Some(address) = bitcoin_receiving_address {
             match_stage.insert("target_bitcoin_address", address);
         } else if let Some(address) = starknet_sending_address {
-            match_stage.insert("caller_address", address);
+            match_stage.insert("caller_address", address.to_fixed_hex_string());
         }
 
         let pipeline = vec![
