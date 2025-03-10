@@ -12,13 +12,14 @@ use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use starknet_crypto::Felt;
 
 use super::responses::{ApiResponse, Status};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BitcoinWithdrawalQuery {
     bitcoin_receiving_address: Option<String>,
-    starknet_sending_address: Option<String>,
+    starknet_sending_address: Option<Felt>,
 }
 
 #[route(get, "/bitcoin_withdrawals")]
