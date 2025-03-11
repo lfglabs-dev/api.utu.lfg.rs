@@ -38,7 +38,7 @@ pub async fn bitcoin_withdrawals(
         )
         .await
     {
-        Ok(sn_txhash) => sn_txhash,
+        Ok(withdrawals) => withdrawals,
         Err(err) => match err {
             DatabaseError::NotFound => {
                 return (
@@ -83,6 +83,13 @@ pub async fn bitcoin_withdrawals(
                     btc_txid: None,
                 });
             }
+        } else {
+            result.push(BitcoinWithdrawalResponse {
+                status: BitcoinWithdrawalStatus::InReview,
+                sn_txhash: withdrawal.transaction_hash,
+                reason: None,
+                btc_txid: None,
+            });
         }
     }
 
