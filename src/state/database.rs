@@ -124,7 +124,7 @@ impl DatabaseExt for Database {
                     "preserveNullAndEmptyArrays": true
                 }
             },
-            // Get trimmed identifier without leading zeros as tx_id:vout for the next lookup
+            // Add identifier as tx_id:vout for the next lookup
             doc! {
                 "$addFields": {
                     "claimed_deposits": {
@@ -133,7 +133,7 @@ impl DatabaseExt for Database {
                             "then": null,
                             "else": {
                                 "$mergeObjects": [
-                                    "$claimed_deposits", // Keep all original fields
+                                    "$claimed_deposits", // Retain all original fields
                                     {
                                         "identifier": {
                                             "$concat": [
@@ -141,43 +141,10 @@ impl DatabaseExt for Database {
                                                 ":",
                                                 { "$toString": "$claimed_deposits.vout" }
                                             ]
-                                        },
-                                        "trimmed_identifier": {
-                                            "$let": {
-                                                "vars": {
-                                                    "txid": "$claimed_deposits.tx_id",
-                                                    "length": { "$strLenCP": "$claimed_deposits.tx_id" },
-                                                    "first_match": {
-                                                        "$regexFind": {
-                                                            "input": "$claimed_deposits.tx_id",
-                                                            "regex": "[1-9]"
-                                                        }
-                                                    }
-                                                },
-                                                "in": {
-                                                    "$concat": [
-                                                        {
-                                                            "$substrCP": [
-                                                                "$$txid",
-                                                                {
-                                                                    "$cond": {
-                                                                        "if": { "$eq": ["$$first_match.match", null] },
-                                                                        "then": 0,  // If no match, keep full tx_id
-                                                                        "else": { "$indexOfCP": ["$$txid", "$$first_match.match"] }
-                                                                    }
-                                                                },
-                                                                "$$length"
-                                                            ]
-                                                        },
-                                                        ":",
-                                                        { "$toString": "$claimed_deposits.vout" }
-                                                    ]
-                                                }
                                             }
-                                        }
                                     }
                                 ]
-                            }
+                            },
                         }
                     }
                 }
@@ -185,11 +152,11 @@ impl DatabaseExt for Database {
             doc! {
                 "$lookup": {
                     "from": "deposit_claim_txs",
-                    "let": { "identifier": "$claimed_deposits.trimmed_identifier" },
+                    "let": { "identifier": "$claimed_deposits.identifier" },
                     "pipeline": [
                         {
                             "$match": {
-                                "$expr": {
+                                 "$expr": {
                                     "$and": [
                                         { "$eq": ["$identifier", "$$identifier"] },
                                         { "$eq": ["$_cursor.to", null] }
@@ -202,15 +169,16 @@ impl DatabaseExt for Database {
                 }
             },
             doc! {
-                "$project": {
-                    "_id": 0,
-                    "starknet_address": 1,
-                    "bitcoin_deposit_address": 1,
-                    "claimed_deposits": 1,
-                    "deposit_claim_txs": 1
-                }
+            "$project": {
+                "_id": 0,
+                "starknet_address": 1,
+                "bitcoin_deposit_address": 1,
+                "claimed_deposits": 1,
+                "deposit_claim_txs": 1
+            }
             },
         ];
+
         let mut cursor = self
             .collection::<DepositAddressesDocument>("deposit_addresses")
             .aggregate(pipeline)
