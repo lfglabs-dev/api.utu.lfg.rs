@@ -1,7 +1,7 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
-use bitcoin::Txid;
 use bitcoincore_rpc::RpcApi;
+use utu_bridge_types::{bitcoin::BitcoinTxId, starknet::StarknetTxHash};
 
 use crate::{
     models::withdrawal::{BitcoinWithdrawalResponse, BitcoinWithdrawalStatus},
@@ -10,27 +10,20 @@ use crate::{
 
 pub fn retrieve_submission_status(
     state: &Arc<AppState>,
-    sn_txhash: String,
-    tx_hex: String,
+    sn_txhash: StarknetTxHash,
+    txid: BitcoinTxId,
 ) -> BitcoinWithdrawalResponse {
-    let txid = match Txid::from_str(&tx_hex) {
-        Ok(txid) => txid,
-        Err(_) => {
-            return BitcoinWithdrawalResponse {
-                status: BitcoinWithdrawalStatus::InReview,
-                sn_txhash,
-                reason: None,
-                btc_txid: None,
-            }
-        }
-    };
     // Check the transaction on the network
-    if let Ok(tx) = state.bitcoin_provider.get_raw_transaction_info(&txid, None) {
+    if state
+        .bitcoin_provider
+        .get_raw_transaction_info(&txid.to_txid(), None)
+        .is_ok()
+    {
         BitcoinWithdrawalResponse {
             status: BitcoinWithdrawalStatus::Submitted,
             sn_txhash,
             reason: None,
-            btc_txid: Some(tx.txid.to_string()),
+            btc_txid: Some(txid),
         }
     } else {
         BitcoinWithdrawalResponse {
