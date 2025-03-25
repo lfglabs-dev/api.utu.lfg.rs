@@ -191,7 +191,7 @@ impl DatabaseExt for Database {
             let data: BitcoinDepositQuery = from_document(doc.map_err(DatabaseError::QueryFailed)?)
                 .map_err(DatabaseError::DeserializationFailed)?;
 
-            results.entry(data.starknet_address.clone()).or_default();
+            results.entry(data.starknet_address).or_default();
 
             if data.claimed_deposits.is_some() {
                 let claimed_deposits = data.claimed_deposits.unwrap();
@@ -200,7 +200,7 @@ impl DatabaseExt for Database {
                 let sn_txhash = data
                     .deposit_claim_txs
                     .first()
-                    .map(|claim_tx| claim_tx.transaction_hash.clone());
+                    .map(|claim_tx| claim_tx.transaction_hash);
                 results
                     .entry(data.starknet_address)
                     .or_default()
