@@ -1,3 +1,6 @@
 [submodule "utu_bridge_deposit_address"]
 	path = utu_bridge_deposit_address
 	url = https://github.com/lfglabs-dev/utu_bridge_deposit_address.git
+[submodule "utu_bridge_types"]
+	path = utu_bridge_types
+	url = https://github.com/lfglabs-dev/utu_bridge_types
