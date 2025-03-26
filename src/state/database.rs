@@ -122,7 +122,6 @@ impl DatabaseExt for Database {
                     "preserveNullAndEmptyArrays": true
                 }
             },
-            // Get trimmed identifier without leading zeros as tx_id:vout for the next lookup
             doc! {
                 "$addFields": {
                     "claimed_deposits": {
@@ -131,7 +130,7 @@ impl DatabaseExt for Database {
                             "then": null,
                             "else": {
                                 "$mergeObjects": [
-                                    "$claimed_deposits", // Keep all original fields
+                                    "$claimed_deposits",
                                     {
                                         "identifier": {
                                             "$concat": [
@@ -141,35 +140,39 @@ impl DatabaseExt for Database {
                                             ]
                                         },
                                         "trimmed_identifier": {
-                                            "$let": {
-                                                "vars": {
-                                                    "txid": "$claimed_deposits.tx_id",
-                                                    "length": { "$strLenCP": "$claimed_deposits.tx_id" },
-                                                    "first_match": {
-                                                        "$regexFind": {
-                                                            "input": "$claimed_deposits.tx_id",
-                                                            "regex": "[1-9]"
+                                            "$cond": {
+                                                "if": { "$not": ["$claimed_deposits.tx_id"] },
+                                                "then": null,
+                                                "else": {
+                                                    "$let": {
+                                                        "vars": {
+                                                            "has_leading_zeros": {
+                                                                "$regexMatch": {
+                                                                    "input": "$claimed_deposits.tx_id",
+                                                                    "regex": "^0+"
+                                                                }
+                                                            }
+                                                        },
+                                                        "in": {
+                                                            "$cond": {
+                                                                "if": "$$has_leading_zeros",
+                                                                "then": {
+                                                                    "$concat": [
+                                                                        { "$substrCP": ["$claimed_deposits.tx_id", 1, -1] },
+                                                                        ":",
+                                                                        { "$toString": "$claimed_deposits.vout" }
+                                                                    ]
+                                                                },
+                                                                "else": {
+                                                                    "$concat": [
+                                                                        "$claimed_deposits.tx_id",
+                                                                        ":",
+                                                                        { "$toString": "$claimed_deposits.vout" }
+                                                                    ]
+                                                                }
+                                                            }
                                                         }
                                                     }
-                                                },
-                                                "in": {
-                                                    "$concat": [
-                                                        {
-                                                            "$substrCP": [
-                                                                "$$txid",
-                                                                {
-                                                                    "$cond": {
-                                                                        "if": { "$eq": ["$$first_match.match", null] },
-                                                                        "then": 0,  // If no match, keep full tx_id
-                                                                        "else": { "$indexOfCP": ["$$txid", "$$first_match.match"] }
-                                                                    }
-                                                                },
-                                                                "$$length"
-                                                            ]
-                                                        },
-                                                        ":",
-                                                        { "$toString": "$claimed_deposits.vout" }
-                                                    ]
                                                 }
                                             }
                                         }
