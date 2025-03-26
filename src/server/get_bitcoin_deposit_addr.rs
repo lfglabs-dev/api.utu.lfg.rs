@@ -7,6 +7,7 @@ use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
+use bitcoin::Network;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -45,7 +46,7 @@ pub async fn get_bitcoin_deposit_addr(
         .set_user_bitcoin_deposit_addr(
             &mut session,
             query.starknet_addr,
-            BitcoinAddress::new(deposit_addr.to_string().as_str()).unwrap(),
+            BitcoinAddress::new(deposit_addr.to_string().as_str(), Network::Bitcoin).unwrap(),
         )
         .await
     {

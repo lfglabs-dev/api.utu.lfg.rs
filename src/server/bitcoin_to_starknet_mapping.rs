@@ -9,6 +9,7 @@ use axum::http::Request;
 use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
+use bitcoin::Network;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use utu_bridge_types::bitcoin::BitcoinAddress;
@@ -32,7 +33,7 @@ pub async fn bitcoin_to_starknet_mapping<B>(
     let bitcoin_addresses = match params.get("bitcoin_addresses") {
         Some(addresses) => addresses
             .iter()
-            .map(|addr| BitcoinAddress::new(addr.as_str()).unwrap())
+            .map(|addr| BitcoinAddress::new(addr.as_str(), Network::Bitcoin).unwrap())
             .collect(),
         None => {
             return (
