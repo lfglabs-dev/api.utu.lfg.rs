@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::state::database::DatabaseExt;
 use crate::state::AppState;
 use crate::try_start_session;
-use crate::{state::database::DatabaseExt, utils::Address};
 use axum::extract::State;
 use axum::http::Request;
 use axum::response::IntoResponse;
@@ -11,7 +11,7 @@ use axum::Json;
 use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
-use starknet_crypto::Felt;
+use utu_bridge_types::starknet::StarknetAddress;
 
 use super::responses::{ApiResponse, Status};
 
@@ -29,18 +29,26 @@ pub async fn bitcoin_deposits<B>(
             acc.entry(key).or_default().push(value);
             acc
         });
-    let starknet_addresses: Vec<String> = match params.get("starknet_receiving_addresses") {
-        Some(addresses) => addresses
-            .iter()
-            .map(|address| {
-                // Try parsing as hex; fall back to decimal if hex parsing fails
-                Felt::from_hex(address)
-                    .or_else(|_| Felt::from_dec_str(address))
-                    .map(|addr_felt| (Address { felt: addr_felt }).to_string())
-                    .unwrap_or_else(|_| String::new())
-            })
-            .filter(|parsed_address| !parsed_address.is_empty())
-            .collect(),
+    let starknet_addresses: Vec<StarknetAddress> = match params.get("starknet_receiving_addresses")
+    {
+        Some(addresses) => {
+            match addresses
+                .iter()
+                .map(|address| StarknetAddress::new(address))
+                .collect::<Result<Vec<StarknetAddress>, _>>()
+            {
+                Ok(addresses) => addresses,
+                Err(_) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(ApiResponse::new(
+                            Status::BadRequest,
+                            "invalid_starknet_address",
+                        )),
+                    );
+                }
+            }
+        }
         None => {
             return (
                 StatusCode::BAD_REQUEST,

@@ -1,25 +1,23 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::server::responses::{ApiResponse, Status};
 use crate::state::database::DatabaseExt;
 use crate::state::{AppState, DatabaseError};
 use crate::try_start_session;
-use crate::utils::Address;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use axum_auto_routes::route;
-use bitcoin::Txid;
 use bitcoincore_rpc::RpcApi;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use utu_bridge_types::starknet::StarknetTxHash;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WithdrawalStatusQuery {
-    sn_txhash: Address,
+    sn_txhash: StarknetTxHash,
 }
 
 #[route(get, "/withdrawal_status")]
@@ -78,22 +76,11 @@ pub async fn withdrawal_status(
 
     if matched_submissions.request_id.is_some() {
         let request_id = matched_submissions.request_id.unwrap();
-        // decode raw transaction
-        let txid = match Txid::from_str(&request_id) {
-            Ok(txid) => txid,
-            Err(_) => {
-                return (
-                    StatusCode::ACCEPTED,
-                    Json(ApiResponse::new(
-                        Status::Success,
-                        json!({ "status": "in_review" }),
-                    )),
-                );
-            }
-        };
-
         // Check the transaction on the network
-        if let Ok(tx) = state.bitcoin_provider.get_raw_transaction_info(&txid, None) {
+        if let Ok(tx) = state
+            .bitcoin_provider
+            .get_raw_transaction_info(&request_id.to_txid(), None)
+        {
             return (
                 StatusCode::ACCEPTED,
                 Json(ApiResponse::new(
