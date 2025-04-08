@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::state::database::DatabaseExt;
 use crate::state::{AppState, DatabaseError};
 use crate::try_start_session;
-use crate::utils::hex::trim_leading_zeros;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
@@ -11,12 +10,13 @@ use axum_auto_routes::route;
 use mongodb::bson::doc;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use utu_bridge_types::bitcoin::{BitcoinOutpoint, BitcoinTxId};
 
 use super::responses::{ApiResponse, Status};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DepositClaimTxhashQuery {
-    btc_txid: String,
+    btc_txid: BitcoinTxId,
     btc_txvout: u32,
 }
 
@@ -31,11 +31,7 @@ pub async fn deposit_claim_txhash(
         .db
         .get_deposit_claim_txhash(
             &mut session,
-            format!(
-                "{}:{}",
-                trim_leading_zeros(&query.btc_txid),
-                query.btc_txvout
-            ),
+            BitcoinOutpoint::new(query.btc_txid, query.btc_txvout),
         )
         .await
     {

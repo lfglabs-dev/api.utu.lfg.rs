@@ -1,4 +1,3 @@
-// pub mod auth;
 pub mod bitcoin_deposits;
 pub mod bitcoin_to_starknet_mapping;
 pub mod bitcoin_withdrawals;
