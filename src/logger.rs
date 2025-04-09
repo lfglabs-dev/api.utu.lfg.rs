@@ -33,13 +33,13 @@ pub enum LogType {
     Debug,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct LogData<'a> {
     token: &'a str,
     log: LogPayload<'a>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct LogPayload<'a> {
     app_id: &'a str,
     r#type: &'a str,
@@ -54,6 +54,7 @@ impl Logger {
 
         let watchtower_enabled =
             env::var("WATCHTOWER_ENABLED").unwrap_or_else(|_| "false".to_string()) == "true";
+        println!("watchtower_enabled: {}", watchtower_enabled);
 
         let (watchtower_token, watchtower_app_id, watchtower_endpoint, log_types) =
             if watchtower_enabled {
@@ -73,6 +74,10 @@ impl Logger {
             } else {
                 (None, None, None, None)
             };
+
+        println!("watchtower_token: {:?}", watchtower_token);
+        println!("watchtower_app_id: {:?}", watchtower_app_id);
+        println!("watchtower_endpoint: {:?}", watchtower_endpoint);
 
         Logger {
             watchtower_enabled,
@@ -96,6 +101,7 @@ impl Logger {
             &self.watchtower_endpoint,
             &self.log_types,
         ) {
+            println!("posting log");
             let client = Arc::clone(&self.client);
 
             let data = LogData {
@@ -112,6 +118,8 @@ impl Logger {
                     timestamp: Utc::now().timestamp_millis(),
                 },
             };
+
+            println!("data to log: {:?}", data);
 
             let response = client.post(watchtower_endpoint).json(&data).send().await;
 
