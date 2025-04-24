@@ -1,4 +1,4 @@
-FROM rust:1.83.0
+FROM rust:1.85.0
 
 # Then set up the main project directory
 WORKDIR /app
