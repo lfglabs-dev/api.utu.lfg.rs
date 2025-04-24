@@ -1,19 +1,19 @@
 use serde::{Deserialize, Serialize};
 use utu_bridge_types::{
-    bitcoin::{BitcoinOutpoint, BitcoinTxId},
-    starknet::StarknetTxHash,
+    bitcoin::BitcoinTxId,
+    starknet::{StarknetTxHash, WithdrawalEventId},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalSubmission {
-    pub identifier: BitcoinOutpoint,
+    pub identifier: WithdrawalEventId,
     pub request_id: Option<BitcoinTxId>,
     pub rejected_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalStatusResponse {
-    pub identifier: BitcoinOutpoint,
+    pub identifier: WithdrawalEventId,
     pub transaction_hash: StarknetTxHash,
     pub matched_submissions: Option<WithdrawalSubmission>,
 }
