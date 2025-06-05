@@ -56,7 +56,7 @@ pub async fn deposit_claim_txhash(
     };
 
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         Json(ApiResponse::new(Status::Success, sn_txhash)),
     )
 }

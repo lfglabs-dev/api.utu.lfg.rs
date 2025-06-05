@@ -64,7 +64,7 @@ pub async fn bitcoin_to_starknet_mapping<B>(
     };
 
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         Json(ApiResponse::new(Status::Success, bitcoin_starknet_mapping)),
     )
 }

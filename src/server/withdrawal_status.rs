@@ -54,7 +54,7 @@ pub async fn withdrawal_status(
 
     if withdrawal_status.matched_submissions.is_none() {
         return (
-            StatusCode::ACCEPTED,
+            StatusCode::OK,
             Json(ApiResponse::new(
                 Status::Success,
                 json!({ "status": "in_review" }),
@@ -66,7 +66,7 @@ pub async fn withdrawal_status(
 
     if matched_submissions.rejected_status.is_some() {
         return (
-            StatusCode::ACCEPTED,
+            StatusCode::OK,
             Json(ApiResponse::new(
                 Status::Success,
                 json!({ "status": "rejected", "reason": matched_submissions.rejected_status.unwrap() }),
@@ -82,7 +82,7 @@ pub async fn withdrawal_status(
             .get_raw_transaction_info(&request_id.to_txid(), None)
         {
             return (
-                StatusCode::ACCEPTED,
+                StatusCode::OK,
                 Json(ApiResponse::new(
                     Status::Success,
                     json!({ "status": "submitted", "btc_txid": tx.txid }),
@@ -90,7 +90,7 @@ pub async fn withdrawal_status(
             );
         } else {
             return (
-                StatusCode::ACCEPTED,
+                StatusCode::OK,
                 Json(ApiResponse::new(
                     Status::Success,
                     json!({ "status": "in_review" }),
@@ -100,7 +100,7 @@ pub async fn withdrawal_status(
     }
 
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         Json(ApiResponse::new(
             Status::Success,
             json!({ "status": "in_review" }),

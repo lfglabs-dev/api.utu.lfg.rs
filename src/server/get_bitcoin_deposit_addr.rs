@@ -70,7 +70,7 @@ pub async fn get_bitcoin_deposit_addr(
     };
 
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         Json(ApiResponse::new(Status::Success, deposit_addr)),
     )
 }

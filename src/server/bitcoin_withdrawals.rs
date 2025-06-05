@@ -95,7 +95,7 @@ pub async fn bitcoin_withdrawals(
     }
 
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         Json(ApiResponse::new(Status::Success, result)),
     )
 }

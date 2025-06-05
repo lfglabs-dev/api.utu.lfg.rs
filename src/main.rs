@@ -74,7 +74,7 @@ async fn main() {
 #[route(get, "/")]
 async fn root() -> (StatusCode, String) {
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         format!("server v{}", env!("CARGO_PKG_VERSION")),
     )
 }

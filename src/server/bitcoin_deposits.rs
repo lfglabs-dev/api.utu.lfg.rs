@@ -75,7 +75,7 @@ pub async fn bitcoin_deposits<B>(
     };
 
     (
-        StatusCode::ACCEPTED,
+        StatusCode::OK,
         Json(ApiResponse::new(Status::Success, deposits)),
     )
 }
