@@ -309,7 +309,13 @@ impl DatabaseExt for Database {
         if let Some(address) = bitcoin_receiving_address {
             match_stage.insert("target_bitcoin_address", address.as_str());
         } else if let Some(address) = starknet_sending_address {
-            match_stage.insert("caller_address", address.as_str());
+            match_stage.insert(
+                "$or",
+                vec![
+                    doc! { "caller_address": address.as_str() },
+                    doc! { "proxied_caller_address": address.as_str() },
+                ],
+            );
         }
 
         let pipeline = vec![
