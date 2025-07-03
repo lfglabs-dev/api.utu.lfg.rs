@@ -8,12 +8,10 @@ ENV CONTAINER_ENV=$ENV
 
 RUN apt-get update && apt-get install -y curl
 
-RUN curl -L -o dotenvx.tar.gz "https://github.com/dotenvx/dotenvx/releases/latest/download/dotenvx-$(uname -s)-$(uname -m).tar.gz" \
-    && tar -xzf dotenvx.tar.gz \
-    && mv dotenvx /usr/local/bin \
-    && rm dotenvx.tar.gz
+# Install dotenvx
+RUN curl -sfS https://dotenvx.sh/install.sh | sh
 
-COPY Cargo.toml .env .env.production .
+COPY Cargo.toml .env .env.production .env.keys .
 COPY src ./src
 # Copy the private dependency first at the root level
 # todo: remove when made public
@@ -26,7 +24,7 @@ RUN if [ "$CONTAINER_ENV" = "prod" ]; then \
         cargo build; \
     fi
 
-EXPOSE 8080
+EXPOSE 80
 
 ENV RUST_BACKTRACE=1
 
