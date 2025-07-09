@@ -8,7 +8,7 @@ starknet-id = { git = "https://github.com/starknet-id/starknetid.rs", rev = "2b3
 starknet = { git = "https://github.com/xJonathanLEI/starknet-rs", rev = "171b0c65cac407ee33972e0ab2c3f8744c083753" }
 starknet-crypto = { git = "https://github.com/xJonathanLEI/starknet-rs", rev = "171b0c65cac407ee33972e0ab2c3f8744c083753" }
 utu_bridge_deposit_address = { path = "./utu_bridge_deposit_address" }
-utu_bridge_types = { path = "./utu_bridge_types"}
+utu_bridge_types = { path = "./utu_bridge_types" }
 axum_auto_routes = { git = "https://github.com/Th0rgal/axum_auto_routes", rev = "ef190613942241f8f93a554cad7d64581a8a0916" }
 axum = { version = "0.6.20", features = ["headers"] }
 toml = "0.5.10"
